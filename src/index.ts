@@ -38,7 +38,8 @@ app.get("/", (req: Request, res: Response) => {
     // next(error);
     console.log("error ==> ", error);
   }
-});
+}
+);
 
 app.use("/customer", bookigRouter);
 app.use("/api/auth", authRouter);
