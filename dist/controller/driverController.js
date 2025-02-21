@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deteleallShiftsHistory = exports.cancelRide = exports.endRide = exports.startRide = exports.cofirmRide = exports.stopShift = exports.startShift = exports.updateDriverStatus = void 0;
+exports.getBookingdeteails = exports.deteleallShiftsHistory = exports.cancelRide = exports.endRide = exports.startRide = exports.cofirmRide = exports.stopShift = exports.startShift = exports.updateDriverStatus = void 0;
 const DriverModels_1 = require("../models/DriverModels");
 const BookingModels_1 = __importDefault(require("../models/BookingModels"));
 const updateDriverStatus = async (req, res) => {
@@ -37,13 +37,11 @@ const startShift = async (req, res) => {
             res.status(404).json({ message: "Driver not found" });
             return;
         }
-        console.log(driver.vehicle.includes(vehicleUsed));
         if (!driver.vehicle.includes(vehicleUsed)) {
             res.status(400).json({ message: "Invalid vehicle" });
             return;
         }
         const activeShift = await DriverModels_1.Shift.findOne({ driverId: driver.driverId, isActive: true });
-        console.log("activeShift ==> ", activeShift);
         if (activeShift) {
             res.status(400).json({ message: "A shift is already active" });
             return;
@@ -73,7 +71,6 @@ const stopShift = async (req, res) => {
     const { driverId } = req.params;
     try {
         const driver = await DriverModels_1.Driver.findOne({ driverId }).populate("shifts");
-        console.log("driver ==> ", driver);
         if (!driver) {
             res.status(404).json({ message: "Not active shift found!" });
             return;
@@ -156,8 +153,12 @@ const startRide = async (req, res) => {
             res.status(400).json({ message: "Driver is not available" });
             return;
         }
+        const pickupDate = new Date();
         activeShift.totalTrips += 1;
+        // booking.arrived = new Date().toISOString();
+        booking.arrived = true;
         booking.status = "ongoing";
+        booking.driver = driver._id;
         driver.status = "busy";
         await activeShift.save();
         await booking.save();
@@ -202,12 +203,15 @@ const endRide = async (req, res) => {
             return;
         }
         const totalFare = BASE_FARE_PRICE * distance;
+        const time = new Date();
         activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
         activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
         booking.status = "completed";
         driver.status = "available";
         booking.distance += distance;
         booking.totalFare += totalFare;
+        booking.dropdownDate = time.toISOString().split("T")[0];
+        booking.dropdownTime = time.toISOString();
         activeShift.totalEarnings += totalFare;
         activeShift.totalDistance += distance;
         await activeShift.save();
@@ -289,3 +293,17 @@ const deteleallShiftsHistory = async (req, res) => {
     }
 };
 exports.deteleallShiftsHistory = deteleallShiftsHistory;
+const getBookingdeteails = async (req, res) => {
+    const { bookingId } = req.body;
+    if (!bookingId) {
+        res.status(400).json({ message: 'Not a vaild bookingId' });
+    }
+    try {
+        const bookings = await BookingModels_1.default.findOne({ bookingId });
+        console.log("Bookings ==> ", bookings);
+    }
+    catch (error) {
+        res.status(500).json({ message: "Error to fetching the booking" });
+    }
+};
+exports.getBookingdeteails = getBookingdeteails;

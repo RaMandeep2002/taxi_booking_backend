@@ -41,7 +41,7 @@ export const bookingRide = async (req: Request, res: Response) => {
       phoneNumber,
       pickupDate: new Date(pickuptime).toISOString().split("T")[0],
       status: { $ne: "cancelled" } // Exclude cancelled bookings
-    });
+    }); 
 
     if (existingBooking) {
       res.status(400).json({ message: "You already have an active booking for this date" });

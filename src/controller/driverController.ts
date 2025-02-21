@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { Driver, Shift } from "../models/DriverModels";
 import BookingModels from "../models/BookingModels";
+import { Types } from "mongoose";
 
 
 export const updateDriverStatus = async (req: Request, res: Response) => {
@@ -41,13 +42,12 @@ export const startShift = async (req: Request, res: Response) => {
       res.status(404).json({ message: "Driver not found" });
       return;
     }
-    console.log(driver.vehicle.includes(vehicleUsed));
     if (!driver.vehicle.includes(vehicleUsed)) {
       res.status(400).json({ message: "Invalid vehicle" });
         return;
     }
     const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
-    console.log("activeShift ==> ", activeShift);
+
     if (activeShift) {
       res.status(400).json({ message: "A shift is already active" });
       return;
@@ -80,7 +80,6 @@ export const stopShift = async (req: Request, res: Response) => {
 
   try {
     const driver = await Driver.findOne({ driverId }).populate("shifts");
-    console.log("driver ==> ", driver);
     if (!driver) {
       res.status(404).json({ message: "Not active shift found!" });
       return;
@@ -182,10 +181,16 @@ export const startRide = async (req:Request, res:Response) =>{
       return;
     }
 
+    const pickupDate = new Date();
+
     activeShift.totalTrips += 1;
 
+    // booking.arrived = new Date().toISOString();
+    booking.arrived = true;
     booking.status = "ongoing";
-    driver.status = "busy";
+    booking.driver = driver._id as Types.ObjectId;
+    driver.status = "busy"; 
+
 
     await activeShift.save();
     await booking.save();
@@ -238,6 +243,7 @@ export const endRide = async(req:Request, res: Response) =>{
     }
 
     const totalFare = BASE_FARE_PRICE * distance;
+    const time = new Date();
 
     activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
@@ -246,7 +252,9 @@ export const endRide = async(req:Request, res: Response) =>{
     booking.status = "completed";
     driver.status = "available";
     booking.distance += distance;
-    booking.totalFare += totalFare;
+    booking.totalFare += totalFare; 
+    booking.dropdownDate = time.toISOString().split("T")[0];
+    booking.dropdownTime = time.toISOString();
 
     activeShift.totalEarnings += totalFare;
     activeShift.totalDistance += distance;
@@ -346,3 +354,20 @@ export const deteleallShiftsHistory = async(req:Request, res:Response) =>{
     return;
   }
 }
+
+export const getBookingdeteails = async(req:Request, res:Response) =>{
+  const {bookingId} = req.body;
+
+  if(!bookingId) {
+    res.status(400).json({message:'Not a vaild bookingId'});
+  }
+
+  try{
+    const bookings = await BookingModels.findOne({bookingId});
+    console.log("Bookings ==> ", bookings);
+  }
+  catch(error){
+    res.status(500).json({message:"Error to fetching the booking"});
+  }
+}
+

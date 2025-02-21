@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from "mongoose";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
 export interface Location {
   latitude: number;
@@ -15,14 +15,18 @@ export interface IBooking extends Document {
   pickuptime: string;
   pickupDate: string;
   pickupTimeFormatted: string;
+  dropdownDate: string;
+  dropdownTime: string;
+  arrived: boolean;
   pickupMonth: string;
   pickupWeek: number;
   fareAmount: number;
   distance: number;
   totalFare: number;
+  driver: Types.ObjectId;
   paymentStatus: "pending" | "paid";
   paymentMethod: "cash" | "card" | "online";
-  status: "pending"| "accepted"| "ongoing"| "completed"| "cancelled";
+  status: "pending" | "accepted" | "ongoing" | "completed" | "cancelled";
   // bookingStatus: "pending" | "confirmed" | "cancelled";
 }
 
@@ -70,6 +74,18 @@ const BookingSchema: Schema = new Schema({
     type: Number,
     required: true,
   },
+  dropdownDate: {
+    type: String,
+    default: 0,
+  },
+  dropdownTime: {
+    type: String,
+    default: 0,
+  },
+  arrived: {
+    type: Boolean,
+    default: false,
+  },
   fareAmount: {
     type: Number,
     defalut: 0,
@@ -82,7 +98,11 @@ const BookingSchema: Schema = new Schema({
     type: Number,
     default: 0,
   },
-  paymentStatus: {
+  driver: {
+    type: Schema.Types.ObjectId,
+    ref: "Driver",
+  },
+  paymentStatus: { 
     type: String,
     enum: ["pending", "paid"],
     default: "pending",
@@ -96,6 +116,6 @@ const BookingSchema: Schema = new Schema({
     enum: ["pending", "accepted", "ongoing", "completed", "cancelled"],
     default: "pending",
   },
-});
+}, { timestamps: true });
 
 export default mongoose.model<IBooking>("Booking", BookingSchema);

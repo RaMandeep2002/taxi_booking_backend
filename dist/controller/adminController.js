@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.gettingReport = exports.deleteBookingdata = exports.removeVehicle = exports.updateVehicleInfomation = exports.getDriverWithVehicleandshifts = exports.getDriverWithVehicle = exports.getDriverListWithVehicle = exports.getDriverWithVehicleexculudeDriver = exports.registerVehicle = exports.deleteDriver = exports.upadateDriver = exports.getDriverDetails = exports.adddriver = exports.getAdminInfo = void 0;
+exports.getBookingdeteails = exports.gettingReport = exports.deleteBookingdata = exports.removeVehicle = exports.updateVehicleInfomation = exports.getDriverWithVehicleandshifts = exports.getDriverWithVehicle = exports.getDriverListWithVehicle = exports.getDriverWithVehicleexculudeDriver = exports.registerVehicle = exports.deleteDriver = exports.upadateDriver = exports.getDriverDetails = exports.adddriver = exports.getAdminInfo = void 0;
 const User_1 = __importDefault(require("../models/User"));
 const DriverModels_1 = require("../models/DriverModels");
 const crypto_1 = __importDefault(require("crypto"));
@@ -394,6 +394,23 @@ const deleteBookingdata = async (req, res) => {
     }
 };
 exports.deleteBookingdata = deleteBookingdata;
+// BOOKING ID,
+// PICKUP DATE,
+// PICKUP TIME,
+// PICKUP MONTH,
+// PICKUP WEEK,
+// CREATED DATE,
+// CREATED TIME,
+// BOOKED,
+// ARRIVED,
+// CONTACT,
+// FINISH DATE,
+// FINISH TIME,
+// CUSTOMER PHONE,
+// ADDRESS,
+// VEHICLE TYPE,
+// VEHICLE #,
+// METER
 const gettingReport = async (req, res) => {
     try {
         const bookings = await BookingModels_1.default.find().lean();
@@ -408,15 +425,19 @@ const gettingReport = async (req, res) => {
         bookings.forEach((booking) => {
             csvStream.write({
                 Booking_ID: booking._id,
-                Customer_Name: booking.customerName,
+                PICKUP_DATE: booking.pickupDate,
+                PICKUP_TIME: booking.pickuptime,
+                PICKUP_MONTH: booking.pickupMonth,
+                // BOOKED:booking.booked,
+                // ARRIVED:
+                CUSTOMER_PHONE: booking.customerName,
                 Phone_Number: booking.phoneNumber,
-                Pickup_Location: booking.pickup.address,
+                ADDRESS: booking.pickup.address,
                 Pickup_Latitude: booking.pickup.latitude,
                 Pickup_Longitude: booking.pickup.longitude,
                 Dropoff_Location: booking.dropOff.address,
                 Dropoff_Latitude: booking.dropOff.latitude,
                 Dropoff_Longitude: booking.dropOff.longitude,
-                Pickup_Time: booking.pickuptime,
                 Fare_Amount: booking.fareAmount,
                 Payment_Status: booking.paymentStatus,
                 Payment_Method: booking.paymentMethod,
@@ -439,3 +460,67 @@ const gettingReport = async (req, res) => {
     }
 };
 exports.gettingReport = gettingReport;
+const getBookingdeteails = async (req, res) => {
+    const { bookingId } = req.body;
+    if (!bookingId) {
+        res.status(400).json({ message: 'Not a vaild bookingId' });
+    }
+    try {
+        console.log("enter ================>");
+        console.log("Booking Id ===> ", bookingId);
+        const bookings = await BookingModels_1.default.aggregate([
+            {
+                $match: { bookingId }, // Match booking by bookingId
+            },
+            {
+                $lookup: {
+                    from: "drivers", // Reference to the Driver collection
+                    localField: "driver",
+                    foreignField: "_id",
+                    as: "driver",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$driver",
+                    preserveNullAndEmptyArrays: true, // Ensure bookings without a driver still return results
+                },
+            },
+            {
+                $project: {
+                    bookingId: 1,
+                    customerName: 1,
+                    phoneNumber: 1,
+                    pickuptime: 1,
+                    pickupDate: 1,
+                    pickupTimeFormatted: 1,
+                    pickupMonth: 1,
+                    pickupWeek: 1,
+                    dropdownDate: 1,
+                    dropdownTime: 1,
+                    arrived: 1,
+                    distance: 1,
+                    totalFare: 1,
+                    paymentStatus: 1,
+                    status: 1,
+                    // Driver details
+                    "driver.driverId": 1,
+                    "driver.drivername": 1,
+                    "driver.email": 1,
+                    "driver.phoneNumber": 1,
+                    "driver.status": 1,
+                    "driver.isOnline": 1,
+                },
+            },
+        ]);
+        if (!bookings || !bookings?.length) {
+            res.status(404).json({ message: "no booking found!!" });
+        }
+        console.log("Bookings ==> ", bookings);
+        res.status(200).json({ message: "Bookings data ===> ", bookings: bookings[0] });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Error to fetching the booking" });
+    }
+};
+exports.getBookingdeteails = getBookingdeteails;
