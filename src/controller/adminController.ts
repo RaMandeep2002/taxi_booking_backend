@@ -459,7 +459,71 @@ export const deleteBookingdata = async (req: Request, res: Response) => {
 
 export const gettingReport = async (req: Request, res: Response) => {
   try {
-    const bookings = await BookingModels.find().lean();
+    const bookings = await BookingModels.aggregate([
+        {
+          $lookup: {
+            from: "drivers", // Reference to the Driver collection
+            localField: "driver",
+            foreignField: "_id",
+            as: "driver",
+          },
+        },
+        {
+          $unwind: {
+            path: "$driver",
+            preserveNullAndEmptyArrays: true, 
+          },
+        },
+        {
+          $lookup:{
+            from:"vehicles",
+            localField:"driver.vehicle",
+            foreignField:"_id",
+            as:"driver.vehicles"
+          }
+        },
+        {
+          $unwind: {
+            path: "$driver.vehicles",
+            preserveNullAndEmptyArrays: true, 
+          },
+        },
+        {
+          $project: {
+            bookingId: 1,
+            customerName: 1,
+            phoneNumber: 1,
+            pickup:1,
+            dropOff:1,
+            pickuptime: 1,
+            pickupDate: 1,
+            pickupTimeFormatted: 1,
+            pickupMonth: 1,
+            pickupWeek: 1,
+            dropdownDate: 1,
+            dropdownTime: 1,
+            arrived: 1,
+            distance: 1,
+            totalFare: 1,
+            paymentStatus: 1,
+            status: 1,
+            // Driver details
+            "driver.driverId": 1,
+            "driver.drivername": 1,
+            "driver.email": 1,
+            "driver.phoneNumber": 1,
+            "driver.status": 1,
+            "driver.isOnline": 1,
+            //vehicle details
+            "driver.vehicles._id":1,
+            "driver.vehicles.registrationNumber":1,
+            "driver.vehicles.make":1,
+            "driver.vehicles.vehicleModel":1,
+            "driver.vehicles.year":1,
+          },
+        },
+      ])
+
     if (!bookings.length) {
       res.status(404).json({ message: "No booking found" });
       return;
@@ -476,23 +540,20 @@ export const gettingReport = async (req: Request, res: Response) => {
 
     bookings.forEach((booking) => {
       csvStream.write({
-        Booking_ID: booking._id,
-        PICKUP_DATE: booking.pickupDate,
-        PICKUP_TIME: booking.pickuptime,
-        PICKUP_MONTH: booking.pickupMonth,
-        // BOOKED:booking.booked,
-        // ARRIVED:
-        CUSTOMER_PHONE: booking.customerName,
-        Phone_Number: booking.phoneNumber,
-        ADDRESS: booking.pickup.address,
-        Pickup_Latitude: booking.pickup.latitude,
-        Pickup_Longitude: booking.pickup.longitude,
-        Dropoff_Location: booking.dropOff.address,
-        Dropoff_Latitude: booking.dropOff.latitude,
-        Dropoff_Longitude: booking.dropOff.longitude,
-        Fare_Amount: booking.fareAmount,
-        Payment_Status: booking.paymentStatus,
-        Payment_Method: booking.paymentMethod,
+        Booking_ID: booking.bookingId,
+        PICKUP_DATE:booking.pickupDate,
+        PICKUP_TIME:booking.pickupTimeFormatted,
+        PICKUP_MONTH:booking.pickupMonth,
+        PICKUP_WEEK:booking.pickupWeek,
+        ARRIVED:booking.arrived,
+        CONTACT:booking.driver.phoneNumber,
+        FINISH_DATE:booking.dropdownDate,
+        FINISH_TIME:booking.dropdownTime,
+        CUSTOMER_PHONE:booking.phoneNumber,
+        ADDRESS:booking.pickup.address,
+        // VEHICLE_TYPE :,
+        VEHICLE:booking.driver.vehicles.make,
+        // METER:booking.
       });
     });
     csvStream.end();
@@ -516,19 +577,11 @@ export const gettingReport = async (req: Request, res: Response) => {
 
 
 export const getBookingdeteails = async (req: Request, res: Response) => {
-  const { bookingId } = req.body;
-
-  if (!bookingId) {
-    res.status(400).json({ message: 'Not a vaild bookingId' });
-  }
-
+ 
   try {
-    console.log("enter ================>");
-    console.log("Booking Id ===> ", bookingId);
+    // console.log("enter ================>");
+    // console.log("Booking Id ===> ", bookingId);
     const bookings = await BookingModels.aggregate([
-      {
-        $match: { bookingId }, // Match booking by bookingId
-      },
       {
         $lookup: {
           from: "drivers", // Reference to the Driver collection
@@ -540,7 +593,21 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       {
         $unwind: {
           path: "$driver",
-          preserveNullAndEmptyArrays: true, // Ensure bookings without a driver still return results
+          preserveNullAndEmptyArrays: true, 
+        },
+      },
+      {
+        $lookup:{
+          from:"vehicles",
+          localField:"driver.vehicle",
+          foreignField:"_id",
+          as:"driver.vehicles"
+        }
+      },
+      {
+        $unwind: {
+          path: "$driver.vehicles",
+          preserveNullAndEmptyArrays: true, 
         },
       },
       {
@@ -548,6 +615,8 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           bookingId: 1,
           customerName: 1,
           phoneNumber: 1,
+          pickup:1,
+          dropOff:1,
           pickuptime: 1,
           pickupDate: 1,
           pickupTimeFormatted: 1,
@@ -567,6 +636,12 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           "driver.phoneNumber": 1,
           "driver.status": 1,
           "driver.isOnline": 1,
+          //vehicle details
+          "driver.vehicles._id":1,
+          "driver.vehicles.registrationNumber":1,
+          "driver.vehicles.make":1,
+          "driver.vehicles.vehicleModel":1,
+          "driver.vehicles.year":1,
         },
       },
     ])
@@ -579,7 +654,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
     console.log("Bookings ==> ", bookings);
 
 
-    res.status(200).json({ message: "Bookings data ===> ", bookings: bookings[0] })
+    res.status(200).json({ message: "Bookings data ===> ", bookings: bookings, total:bookings.length })
   }
   catch (error) {
     res.status(500).json({ message: "Error to fetching the booking" });
