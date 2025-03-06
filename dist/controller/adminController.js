@@ -416,32 +416,22 @@ const gettingReport = async (req, res) => {
         const bookings = await BookingModels_1.default.aggregate([
             {
                 $lookup: {
-                    from: "drivers", // Reference to the Driver collection
+                    from: "drivers",
                     localField: "driver",
                     foreignField: "_id",
                     as: "driver",
                 },
             },
-            {
-                $unwind: {
-                    path: "$driver",
-                    preserveNullAndEmptyArrays: true,
-                },
-            },
+            { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
             {
                 $lookup: {
                     from: "vehicles",
                     localField: "driver.vehicle",
                     foreignField: "_id",
-                    as: "driver.vehicles"
-                }
-            },
-            {
-                $unwind: {
-                    path: "$driver.vehicles",
-                    preserveNullAndEmptyArrays: true,
+                    as: "driver.vehicles",
                 },
             },
+            { $unwind: { path: "$driver.vehicles", preserveNullAndEmptyArrays: true } },
             {
                 $project: {
                     bookingId: 1,
@@ -468,7 +458,7 @@ const gettingReport = async (req, res) => {
                     "driver.phoneNumber": 1,
                     "driver.status": 1,
                     "driver.isOnline": 1,
-                    //vehicle details
+                    // Vehicle details
                     "driver.vehicles._id": 1,
                     "driver.vehicles.registrationNumber": 1,
                     "driver.vehicles.make": 1,
@@ -478,13 +468,13 @@ const gettingReport = async (req, res) => {
             },
         ]);
         if (!bookings.length) {
-            res.status(404).json({ message: "No booking found" });
+            res.status(404).json({ message: "No bookings found" });
             return;
         }
-        const filepath = "booking.csv";
-        const writeablestrems = fs_1.default.createWriteStream(filepath);
+        const filepath = "bookings.csv";
+        const writeableStream = fs_1.default.createWriteStream(filepath);
         const csvStream = (0, fast_csv_1.format)({ headers: true });
-        csvStream.pipe(writeablestrems);
+        csvStream.pipe(writeableStream);
         bookings.forEach((booking) => {
             csvStream.write({
                 Booking_ID: booking.bookingId,
@@ -497,25 +487,23 @@ const gettingReport = async (req, res) => {
                 FINISH_DATE: booking.dropdownDate,
                 FINISH_TIME: booking.dropdownTime,
                 CUSTOMER_PHONE: booking.phoneNumber,
-                ADDRESS: booking.pickup.address,
-                // VEHICLE_TYPE :,
-                VEHICLE: booking.driver.vehicles.make,
-                // METER:booking.
+                ADDRESS: booking.pickup?.address || "N/A",
+                VEHICLE: booking.driver.vehicles?.make || "N/A",
             });
         });
         csvStream.end();
-        writeablestrems.on("finish", () => {
+        writeableStream.on("finish", () => {
             res.download(filepath, "bookings.csv", (err) => {
                 if (err) {
                     console.error("Error sending file:", err);
                     res.status(500).json({ message: "Error generating CSV file." });
                 }
-                // Optional: Delete the file after sending
                 fs_1.default.unlinkSync(filepath);
             });
         });
     }
     catch (error) {
+        console.error(error);
         res.status(500).json({ message: "Internal server error" });
     }
 };

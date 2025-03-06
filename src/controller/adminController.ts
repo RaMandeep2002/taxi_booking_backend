@@ -460,118 +460,105 @@ export const deleteBookingdata = async (req: Request, res: Response) => {
 export const gettingReport = async (req: Request, res: Response) => {
   try {
     const bookings = await BookingModels.aggregate([
-        {
-          $lookup: {
-            from: "drivers", // Reference to the Driver collection
-            localField: "driver",
-            foreignField: "_id",
-            as: "driver",
-          },
+      {
+        $lookup: {
+          from: "drivers",
+          localField: "driver",
+          foreignField: "_id",
+          as: "driver",
         },
-        {
-          $unwind: {
-            path: "$driver",
-            preserveNullAndEmptyArrays: true, 
-          },
+      },
+      { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "vehicles",
+          localField: "driver.vehicle",
+          foreignField: "_id",
+          as: "driver.vehicles",
         },
-        {
-          $lookup:{
-            from:"vehicles",
-            localField:"driver.vehicle",
-            foreignField:"_id",
-            as:"driver.vehicles"
-          }
+      },
+      { $unwind: { path: "$driver.vehicles", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          bookingId: 1,
+          customerName: 1,
+          phoneNumber: 1,
+          pickup: 1,
+          dropOff: 1,
+          pickuptime: 1,
+          pickupDate: 1,
+          pickupTimeFormatted: 1,
+          pickupMonth: 1,
+          pickupWeek: 1,
+          dropdownDate: 1,
+          dropdownTime: 1,
+          arrived: 1,
+          distance: 1,
+          totalFare: 1,
+          paymentStatus: 1,
+          status: 1,
+          // Driver details
+          "driver.driverId": 1,
+          "driver.drivername": 1,
+          "driver.email": 1,
+          "driver.phoneNumber": 1,
+          "driver.status": 1,
+          "driver.isOnline": 1,
+          // Vehicle details
+          "driver.vehicles._id": 1,
+          "driver.vehicles.registrationNumber": 1,
+          "driver.vehicles.make": 1,
+          "driver.vehicles.vehicleModel": 1,
+          "driver.vehicles.year": 1,
         },
-        {
-          $unwind: {
-            path: "$driver.vehicles",
-            preserveNullAndEmptyArrays: true, 
-          },
-        },
-        {
-          $project: {
-            bookingId: 1,
-            customerName: 1,
-            phoneNumber: 1,
-            pickup:1,
-            dropOff:1,
-            pickuptime: 1,
-            pickupDate: 1,
-            pickupTimeFormatted: 1,
-            pickupMonth: 1,
-            pickupWeek: 1,
-            dropdownDate: 1,
-            dropdownTime: 1,
-            arrived: 1,
-            distance: 1,
-            totalFare: 1,
-            paymentStatus: 1,
-            status: 1,
-            // Driver details
-            "driver.driverId": 1,
-            "driver.drivername": 1,
-            "driver.email": 1,
-            "driver.phoneNumber": 1,
-            "driver.status": 1,
-            "driver.isOnline": 1,
-            //vehicle details
-            "driver.vehicles._id":1,
-            "driver.vehicles.registrationNumber":1,
-            "driver.vehicles.make":1,
-            "driver.vehicles.vehicleModel":1,
-            "driver.vehicles.year":1,
-          },
-        },
-      ])
+      },
+    ]);
 
     if (!bookings.length) {
-      res.status(404).json({ message: "No booking found" });
+      res.status(404).json({ message: "No bookings found" });
       return;
     }
 
-
-    const filepath = "booking.csv";
-
-    const writeablestrems = fs.createWriteStream(filepath);
-
+    const filepath = "bookings.csv";
+    const writeableStream = fs.createWriteStream(filepath);
     const csvStream = format({ headers: true });
 
-    csvStream.pipe(writeablestrems);
+    csvStream.pipe(writeableStream);
 
     bookings.forEach((booking) => {
       csvStream.write({
         Booking_ID: booking.bookingId,
-        PICKUP_DATE:booking.pickupDate,
-        PICKUP_TIME:booking.pickupTimeFormatted,
-        PICKUP_MONTH:booking.pickupMonth,
-        PICKUP_WEEK:booking.pickupWeek,
-        ARRIVED:booking.arrived,
-        CONTACT:booking.driver.phoneNumber,
-        FINISH_DATE:booking.dropdownDate,
-        FINISH_TIME:booking.dropdownTime,
-        CUSTOMER_PHONE:booking.phoneNumber,
-        ADDRESS:booking.pickup.address,
-        // VEHICLE_TYPE :,
-        VEHICLE:booking.driver.vehicles.make,
-        // METER:booking.
+        PICKUP_DATE: booking.pickupDate,
+        PICKUP_TIME: booking.pickupTimeFormatted,
+        PICKUP_MONTH: booking.pickupMonth,
+        PICKUP_WEEK: booking.pickupWeek,
+        ARRIVED: booking.arrived,
+        CONTACT: booking.driver.phoneNumber,
+        FINISH_DATE: booking.dropdownDate,
+        FINISH_TIME: booking.dropdownTime,
+        CUSTOMER_PHONE: booking.phoneNumber,
+        ADDRESS: booking.pickup?.address || "N/A",
+        VEHICLE: booking.driver.vehicles?.make || "N/A",
       });
     });
+
     csvStream.end();
 
-    writeablestrems.on("finish", () => {
+    writeableStream.on("finish", () => {
       res.download(filepath, "bookings.csv", (err) => {
         if (err) {
           console.error("Error sending file:", err);
           res.status(500).json({ message: "Error generating CSV file." });
         }
-        // Optional: Delete the file after sending
         fs.unlinkSync(filepath);
       });
     });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
 };
+
 
 
 

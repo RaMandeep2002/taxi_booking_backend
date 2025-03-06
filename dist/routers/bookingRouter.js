@@ -8,4 +8,5 @@ const BookingRide_1 = require("../controller/BookingRide");
 // import { startRide } from "../controller/driverController";
 const router = express_1.default.Router();
 router.post("/ridebooking", BookingRide_1.bookingRide);
+router.get("/bookingHistory", BookingRide_1.bookingHistory);
 exports.default = router;

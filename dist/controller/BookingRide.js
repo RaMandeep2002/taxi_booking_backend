@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllBookingRider = exports.bookingRide = void 0;
+exports.bookingHistory = exports.getAllBookingRider = exports.bookingRide = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 // import bcrypt from "bcryptjs";
 const BookingModels_1 = __importDefault(require("../models/BookingModels"));
@@ -29,6 +29,16 @@ const bookingRide = async (req, res) => {
             res.status(400).json({ message: "Missing required fields." });
             return;
         }
+        const pickupDate = new Date(pickuptime);
+        console.log("time ==> ", pickupDate);
+        // if(!isNaN(pickupDate.getTime()) || pickupDate < new Date()){
+        //   res.status(400).json({message:"Invaild or past pickup time."});
+        //   return;
+        // }
+        if (pickupDate < new Date()) {
+            res.status(400).json({ message: "Invaild or past pickup time." });
+            return;
+        }
         // Check if user already has a booking for this pickup time
         const existingBooking = await BookingModels_1.default.findOne({
             phoneNumber,
@@ -39,7 +49,6 @@ const bookingRide = async (req, res) => {
             res.status(400).json({ message: "You already have an active booking for this date" });
             return;
         }
-        const pickupDate = new Date(pickuptime);
         const bookingId = generateBookingId();
         const newBooking = new BookingModels_1.default({
             bookingId,
@@ -86,3 +95,59 @@ const getAllBookingRider = async (req, res) => {
     }
 };
 exports.getAllBookingRider = getAllBookingRider;
+const bookingHistory = async (req, res) => {
+    try {
+        const bookings = await BookingModels_1.default.aggregate([
+            {
+                $lookup: {
+                    from: "drivers", // Reference to the Driver collection
+                    localField: "driver",
+                    foreignField: "_id",
+                    as: "driver",
+                },
+            },
+            {
+                $unwind: {
+                    path: "$driver",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $lookup: {
+                    from: "vehicles",
+                    localField: "driver.vehicle",
+                    foreignField: "_id",
+                    as: "driver.vehicles"
+                }
+            },
+            {
+                $unwind: {
+                    path: "$driver.vehicles",
+                    preserveNullAndEmptyArrays: true,
+                },
+            },
+            {
+                $project: {
+                    bookingId: 1,
+                    customerName: 1,
+                    pickuptime: 1,
+                    totalFare: 1,
+                    paymentStatus: 1,
+                    status: 1,
+                    // Driver details
+                    "driver.drivername": 1,
+                    "driver.email": 1,
+                },
+            },
+        ]);
+        if (!bookings.length) {
+            res.status(404).json({ message: "No booking found" });
+            return;
+        }
+        res.status(200).json({ message: "Successfully fetch the History", bookings });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Internal server error" });
+    }
+};
+exports.bookingHistory = bookingHistory;
