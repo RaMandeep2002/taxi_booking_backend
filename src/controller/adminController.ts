@@ -131,44 +131,28 @@ export const adddriver = async (req: Request, res: Response) => {
     res.status(400).json({ messge: "Something went worng!", error });
   }
 };
-export const getDriverDetails = async (req: Request, res: Response) => {
-  try {
-    const cacheKey = "drivers:list";
-
-    const cachedDrivers = await redisClinet.get(cacheKey);
-    if (cachedDrivers) {
-      res.status(200).json({
-        success: true,
-        message: "Driver data fetched from cache",
-        data: JSON.parse(cachedDrivers),
-      });
-      return;
-    }
-
-    const drivers = await Driver.find();
-
-    if (!drivers || drivers.length === 0) {
-      res.status(404).json({ success: false, message: "No drivers found" });
-      return;
-    }
-
-    await redisClinet.setEx(cacheKey, 3600, JSON.stringify(drivers));
-
-    res.status(200).json({
-      success: true,
-      messge: "Driver Fetch successfully",
-      data: drivers,
-    });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ success: false, message: "Error fetching drivers", error });
-  }
-};
-
 // export const getDriverDetails = async (req: Request, res: Response) => {
 //   try {
+//     const cacheKey = "drivers:list";
+
+//     const cachedDrivers = await redisClinet.get(cacheKey);
+//     if (cachedDrivers) {
+//       res.status(200).json({
+//         success: true,
+//         message: "Driver data fetched from cache",
+//         data: JSON.parse(cachedDrivers),
+//       });
+//       return;
+//     }
+
 //     const drivers = await Driver.find();
+
+//     if (!drivers || drivers.length === 0) {
+//       res.status(404).json({ success: false, message: "No drivers found" });
+//       return;
+//     }
+
+//     await redisClinet.setEx(cacheKey, 3600, JSON.stringify(drivers));
 
 //     res.status(200).json({
 //       success: true,
@@ -181,6 +165,22 @@ export const getDriverDetails = async (req: Request, res: Response) => {
 //       .json({ success: false, message: "Error fetching drivers", error });
 //   }
 // };
+
+export const getDriverDetails = async (req: Request, res: Response) => {
+  try {
+    const drivers = await Driver.find();
+
+    res.status(200).json({
+      success: true,
+      messge: "Driver Fetch successfully",
+      data: drivers,
+    });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ success: false, message: "Error fetching drivers", error });
+  }
+};
 export const upadateDriver = async (req: Request, res: Response) => {
   const { driverId } = req.params;
   const { name, email, phoneNumber } = req.body;

@@ -3,10 +3,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.bookingHistory = exports.getAllBookingRider = exports.bookingRide = void 0;
+exports.getTheUserInformation = exports.bookingHistory = exports.getAllBookingRider = exports.bookingRide = void 0;
 const crypto_1 = __importDefault(require("crypto"));
 // import bcrypt from "bcryptjs";
 const BookingModels_1 = __importDefault(require("../models/BookingModels"));
+const User_1 = __importDefault(require("../models/User"));
 const generateBookingId = () => {
     const bookingId = crypto_1.default.randomBytes(4).toString("hex");
     return bookingId;
@@ -30,19 +31,19 @@ const bookingRide = async (req, res) => {
             return;
         }
         const pickupDate = new Date(pickuptime);
-        console.log("time ==> ", pickupDate);
-        // if(!isNaN(pickupDate.getTime()) || pickupDate < new Date()){
-        //   res.status(400).json({message:"Invaild or past pickup time."});
-        //   return;
-        // }
+        if (isNaN(pickupDate.getTime())) {
+            res.status(400).json({ message: "Invalid pickup time format. Use ISO format (YYYY-MM-DDTHH:mm:ss.sssZ)" });
+            return;
+        }
         if (pickupDate < new Date()) {
             res.status(400).json({ message: "Invaild or past pickup time." });
             return;
         }
+        const pickupDateISO = pickupDate.toISOString().split("T")[0];
         // Check if user already has a booking for this pickup time
         const existingBooking = await BookingModels_1.default.findOne({
             phoneNumber,
-            pickupDate: new Date(pickuptime).toISOString().split("T")[0],
+            pickupDate: pickupDateISO,
             status: { $ne: "cancelled" } // Exclude cancelled bookings
         });
         if (existingBooking) {
@@ -57,13 +58,13 @@ const bookingRide = async (req, res) => {
             pickup,
             dropOff,
             pickuptime: pickupDate.toISOString(),
-            pickupDate: pickupDate.toISOString().split("T")[0],
-            pickupTimeFormatted: pickupDate.toLocaleTimeString("en-IN", {
+            pickupDate: pickupDateISO,
+            pickupTimeFormatted: new Intl.DateTimeFormat("en-IN", {
                 hour: "2-digit",
                 minute: "2-digit",
                 hour12: true,
                 timeZone: "Asia/Kolkata"
-            }),
+            }).format(pickupDate),
             pickupMonth: pickupDate.toLocaleString("default", { month: "long" }),
             pickupWeek: getWeekNumber(pickupDate)
         });
@@ -151,3 +152,17 @@ const bookingHistory = async (req, res) => {
     }
 };
 exports.bookingHistory = bookingHistory;
+const getTheUserInformation = async (req, res) => {
+    try {
+        const users = await User_1.default.find({ role: "customer" });
+        console.log("users ===> ", users);
+        if (!users) {
+            res.status(404).json({ message: "users not found!!" });
+        }
+        res.status(200).json({ message: "users fetch successfully!!", users });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Failed to fetch the users!!", error });
+    }
+};
+exports.getTheUserInformation = getTheUserInformation;

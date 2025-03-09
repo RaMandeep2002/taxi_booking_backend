@@ -19,13 +19,13 @@ export const authenticate = (
     const decoded = jwt.verify(token, secret) as UserPayload;
     req.user = decoded;
     if (!req.user.id) {
-      res.status(403).json({ message: "Invalid token structure" });
+      res.status(401).json({ message: "Invalid token structure" });
       return;
     }
 
     next();
   } catch (error) {
-    res.status(400).json({ error: "Invaild Token" });
+    res.status(401).json({ error: "Invaild Token" });
     return;
   }
 };

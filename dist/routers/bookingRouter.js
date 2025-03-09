@@ -9,4 +9,5 @@ const BookingRide_1 = require("../controller/BookingRide");
 const router = express_1.default.Router();
 router.post("/ridebooking", BookingRide_1.bookingRide);
 router.get("/bookingHistory", BookingRide_1.bookingHistory);
+router.get("/users", BookingRide_1.getTheUserInformation);
 exports.default = router;
