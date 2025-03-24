@@ -3,6 +3,7 @@ import crypto, { Verify } from "crypto";
 // import bcrypt from "bcryptjs";
 import BookingModels, { IBooking } from "../models/BookingModels";
 import User from "../models/User";
+import { bookingSchema } from "../schema/bookingSchema";
 
 const generateBookingId = () => {
   const bookingId = crypto.randomBytes(4).toString("hex");
@@ -18,13 +19,18 @@ function getWeekNumber (date: Date): number{
 
 export const bookingRide = async (req: Request, res: Response) => {
   try {
+    const validationResult = bookingSchema.safeParse(req.body)
+    if(!validationResult.success){
+      res.status(400).json({errors: validationResult.error.errors});
+      return;
+    }
     const {
       customerName,
       phoneNumber,
       pickup,
       dropOff,
       pickuptime,
-    } = req.body;
+    } = validationResult.data;
 
     if (
       !customerName ||
@@ -38,20 +44,16 @@ export const bookingRide = async (req: Request, res: Response) => {
     }
 
     const pickupDate = new Date(pickuptime);
-    
-
-    if(isNaN(pickupDate.getTime())){
-      res.status(400).json({message:"Invalid pickup time format. Use ISO format (YYYY-MM-DDTHH:mm:ss.sssZ)"});
-      return;
-    }
-
-    if(pickupDate < new Date()){
-      res.status(400).json({message:"Invaild or past pickup time."});
+   
+    const pickupDateIST = new Date(pickupDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const currentDateIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    if(pickupDateIST < currentDateIST){
+      res.status(400).json({message:"Pickup time cannot be in the past"});
       return;
     }
 
     const pickupDateISO = pickupDate.toISOString().split("T")[0];
-    // Check if user already has a booking for this pickup time
+    
     const existingBooking = await BookingModels.findOne({
       phoneNumber,
       pickupDate: pickupDateISO,
@@ -70,7 +72,12 @@ export const bookingRide = async (req: Request, res: Response) => {
       phoneNumber,
       pickup,
       dropOff,
-      pickuptime: pickupDate.toISOString(),
+      pickuptime:  new Intl.DateTimeFormat("en-IN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "Asia/Kolkata"
+      }).format(pickupDate),
       pickupDate: pickupDateISO,
       pickupTimeFormatted: new Intl.DateTimeFormat("en-IN", {
         hour: "2-digit",
@@ -81,6 +88,8 @@ export const bookingRide = async (req: Request, res: Response) => {
       pickupMonth: pickupDate.toLocaleString("default", { month: "long" }),
       pickupWeek: getWeekNumber(pickupDate)
     });
+
+    console.log("newBooking ===> ", newBooking)
 
     await newBooking.save();
     res

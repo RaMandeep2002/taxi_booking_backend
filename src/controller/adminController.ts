@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import User from "../models/User";
-import { Driver, IVehicle, Vehicle } from "../models/DriverModels";
-import crypto, { Verify } from "crypto";
+import { Vehicle } from "../models/VehicleModel";
+import { Driver } from "../models/DriverModel";
+import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import BookingModels from "../models/BookingModels";
 import mongoose from "mongoose";
@@ -10,6 +11,10 @@ import { Roles } from "../types/roles";
 import redisClinet from "../config/redis";
 import fs from "fs";
 import { format } from "fast-csv";
+import { DriverAddSchema, registerVehicleSchema } from "../schema/DriverSchema";
+import { error } from "console";
+import { SettingSchemaModel } from "../models/SettingModels";
+import { SettingSchema } from "../schema/SettingSchema";
 
 const generatoRandomCredentials = () => {
   const id = crypto.randomBytes(4).toString("hex");
@@ -21,6 +26,7 @@ const generateRandomRegistrationNumber = () => {
   const registrationNumber = crypto.randomBytes(8).toString("hex");
   return { registrationNumber };
 };
+
 // export const getAdminInfo = async (req: AuthRequest, res: Response) => {
 //   try {
 //     if (!req.user || !req.user.id) {
@@ -79,8 +85,16 @@ export const getAdminInfo = async (
 };
 
 export const adddriver = async (req: Request, res: Response) => {
+  console.log("Enter ===> ")
+  const validationResult = DriverAddSchema.safeParse(req.body);
+  console.log("validationResult ==> ", validationResult);
+  if (!validationResult.success) {
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
+  }
+
   const { drivername, email, driversLicenseNumber, phoneNumber, password } =
-    req.body;
+    validationResult.data;
 
   try {
     if (!driversLicenseNumber) {
@@ -131,6 +145,88 @@ export const adddriver = async (req: Request, res: Response) => {
     res.status(400).json({ messge: "Something went worng!", error });
   }
 };
+
+export const addMultipleDrivers = async (req: Request, res: Response) => {
+  const { drivers } = req.body; // Expecting an array of driver objects
+
+  if (!Array.isArray(drivers) || drivers.length === 0) {
+   res.status(400).json({ message: "Invalid input. Expected an array of drivers." });
+   return;
+  }
+
+  const validationResults = drivers.map(driver => DriverAddSchema.safeParse(driver));
+
+  // Check if all inputs are valid
+  const invalidResults = validationResults.filter(result => !result.success);
+  if (invalidResults.length > 0) {
+     res.status(400).json({
+      message: "Validation errors in some drivers",
+      errors: invalidResults.map(result => result.error.errors),
+    });
+    return;
+  }
+
+  try {
+    const processedDrivers = await Promise.all(
+      validationResults.map(async (result) => {
+        if (!result.success) return null;
+
+        const { drivername, email, driversLicenseNumber, phoneNumber, password } = result.data;
+
+        // Check if email already exists
+        const existingDriver = await Driver.findOne({ email });
+        if (existingDriver) return null; // Skip if driver exists
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        const user = new User({
+          name: drivername,
+          email,
+          password: hashedPassword,
+          role: Roles.Driver,
+        });
+        await user.save();
+
+        return {
+          driverId: user._id,
+          drivername,
+          email,
+          driversLicenseNumber,
+          phoneNumber,
+          password: hashedPassword,
+          vehicle: [],
+          shifts: [],
+          status: "available",
+          location: { latitude: 0, longitude: 0 },
+        };
+      })
+    );
+
+    // Filter out null values (skipped existing drivers)
+    const validDrivers = processedDrivers.filter(driver => driver !== null);
+
+    if (validDrivers.length === 0) {
+       res.status(400).json({ message: "No new drivers were added." });
+       return;
+    }
+
+    // Insert all valid drivers in one go
+    await Driver.insertMany(validDrivers);
+
+    res.status(201).json({
+      message: `${validDrivers.length} drivers added successfully`,
+      addedDrivers: validDrivers.map(({ drivername, email, driversLicenseNumber, phoneNumber }) => ({
+        drivername,
+        email,
+        driversLicenseNumber,
+        phoneNumber,
+      })),
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: "Something went wrong!", error });
+  }
+};
+
 // export const getDriverDetails = async (req: Request, res: Response) => {
 //   try {
 //     const cacheKey = "drivers:list";
@@ -183,7 +279,12 @@ export const getDriverDetails = async (req: Request, res: Response) => {
 };
 export const upadateDriver = async (req: Request, res: Response) => {
   const { driverId } = req.params;
-  const { name, email, phoneNumber } = req.body;
+  const validationResult = DriverAddSchema.safeParse(req.body);
+  if (!validationResult.success) {
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
+  }
+  const { drivername: name, email, phoneNumber } = validationResult.data;
 
   try {
     const updateDriver = await Driver.findOneAndUpdate(
@@ -223,7 +324,13 @@ export const deleteDriver = async (req: Request, res: Response) => {
 
 export const registerVehicle = async (req: Request, res: Response) => {
   const { driverId } = req.params;
-  const { make, vehicleModel, year, status } = req.body;
+  const validationResult = registerVehicleSchema.safeParse(req.body);
+  if (!validationResult.success) {
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
+  }
+
+  const { make, vehicleModel, year, status } = validationResult.data;
 
   try {
     if (!make || !vehicleModel || !year) {
@@ -232,10 +339,8 @@ export const registerVehicle = async (req: Request, res: Response) => {
     }
 
     const { registrationNumber } = generateRandomRegistrationNumber(); // Fix function name
-
-    const driver = await Driver.findOne({
-      _id: new mongoose.Types.ObjectId(driverId),
-    }).populate("vehicle");
+    console.log("Driver Id ===> ",driverId)
+    const driver = await Driver.findOne({driverId}).populate("vehicle");
     console.log(driver);
     if (!driver) {
       res.status(404).json({ message: "Driver not found!" });
@@ -257,8 +362,8 @@ export const registerVehicle = async (req: Request, res: Response) => {
     await driver.save();
 
     // Populate the driver's vehicle data
-    const updatedDriver = await Driver.findById(driverId).populate("vehicle");
-
+    const updatedDriver = await Driver.findOne({driverId}).populate("vehicle");
+    console.log("updatedDriver ===> ", updatedDriver)
     // Return the updated driver data with the vehicle details
     res.status(201).json({
       message: "Vehicle registered successfully!",
@@ -355,8 +460,13 @@ export const getDriverWithVehicleandshifts = async (req: Request, res: Response)
 
 export const updateVehicleInfomation = async (req: Request, res: Response) => {
   const { driverId, registrationNumber } = req.params;
-  const { make, vehicleModel, year, status } = req.body;
+  const validationResult = registerVehicleSchema.safeParse(req.body);
+  if (!validationResult.success) {
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
+  }
 
+  const { make, vehicleModel, year, status } = validationResult.data;
   try {
     const vehicle = await Vehicle.findOne({ registrationNumber });
     if (!vehicle) {
@@ -439,23 +549,6 @@ export const deleteBookingdata = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error deleting all booking", error });
   }
 };
-// BOOKING ID,
-// PICKUP DATE,
-// PICKUP TIME,
-// PICKUP MONTH,
-// PICKUP WEEK,
-// CREATED DATE,
-// CREATED TIME,
-// BOOKED,
-// ARRIVED,
-// CONTACT,
-// FINISH DATE,
-// FINISH TIME,
-// CUSTOMER PHONE,
-// ADDRESS,
-// VEHICLE TYPE,
-// VEHICLE #,
-// METER
 
 export const gettingReport = async (req: Request, res: Response) => {
   try {
@@ -564,7 +657,7 @@ export const gettingReport = async (req: Request, res: Response) => {
 
 
 export const getBookingdeteails = async (req: Request, res: Response) => {
- 
+
   try {
     // console.log("enter ================>");
     // console.log("Booking Id ===> ", bookingId);
@@ -580,21 +673,21 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       {
         $unwind: {
           path: "$driver",
-          preserveNullAndEmptyArrays: true, 
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
-        $lookup:{
-          from:"vehicles",
-          localField:"driver.vehicle",
-          foreignField:"_id",
-          as:"driver.vehicles"
+        $lookup: {
+          from: "vehicles",
+          localField: "driver.vehicle",
+          foreignField: "_id",
+          as: "driver.vehicles"
         }
       },
       {
         $unwind: {
           path: "$driver.vehicles",
-          preserveNullAndEmptyArrays: true, 
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
@@ -602,8 +695,8 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           bookingId: 1,
           customerName: 1,
           phoneNumber: 1,
-          pickup:1,
-          dropOff:1,
+          pickup: 1,
+          dropOff: 1,
           pickuptime: 1,
           pickupDate: 1,
           pickupTimeFormatted: 1,
@@ -624,11 +717,11 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           "driver.status": 1,
           "driver.isOnline": 1,
           //vehicle details
-          "driver.vehicles._id":1,
-          "driver.vehicles.registrationNumber":1,
-          "driver.vehicles.make":1,
-          "driver.vehicles.vehicleModel":1,
-          "driver.vehicles.year":1,
+          "driver.vehicles._id": 1,
+          "driver.vehicles.registrationNumber": 1,
+          "driver.vehicles.make": 1,
+          "driver.vehicles.vehicleModel": 1,
+          "driver.vehicles.year": 1,
         },
       },
     ])
@@ -641,9 +734,45 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
     console.log("Bookings ==> ", bookings);
 
 
-    res.status(200).json({ message: "Bookings data ===> ", bookings: bookings, total:bookings.length })
+    res.status(200).json({ message: "Bookings data ===> ", bookings: bookings, total: bookings.length })
   }
   catch (error) {
     res.status(500).json({ message: "Error to fetching the booking" });
+  }
+}
+
+
+export const setting = async(req:Request, res:Response) =>{
+  const validationResult = SettingSchema.safeParse(req.body);
+
+  if (!validationResult.success) {
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
+  }
+  const {basePrice, pricePerKm } = validationResult.data;
+
+  if(!basePrice || !pricePerKm){
+    res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
+    return;
+  }
+
+  try{
+    let settings = await SettingSchemaModel.findOne();
+
+    if(settings){
+      settings.basePrice = basePrice;
+      settings.pricePerKm = pricePerKm;
+      await settings.save();
+    }
+    else{
+      settings = new SettingSchemaModel({basePrice, pricePerKm });
+      await settings.save(); 
+    }
+
+
+    res.status(200).json({message:"Setting Update Successfully", settings});
+  }
+  catch(error:any){
+    res.status(500).json({message:"Something worng!!", error});
   }
 }

@@ -7,8 +7,14 @@ exports.loginuser = exports.register = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const User_1 = __importDefault(require("../models/User"));
+const userSchema_1 = require("../schema/userSchema");
 const register = async (req, res) => {
-    const { name, email, password, role } = req.body;
+    const validationResult = userSchema_1.registerSchema.safeParse(req.body);
+    if (!validationResult.success) {
+        res.status(400).json({ errors: validationResult.error.errors });
+        return;
+    }
+    const { name, email, password, role } = validationResult.data;
     try {
         const exsitingUser = await User_1.default.findOne({ email });
         if (exsitingUser) {
@@ -26,7 +32,12 @@ const register = async (req, res) => {
 };
 exports.register = register;
 const loginuser = async (req, res) => {
-    const { email, password } = req.body;
+    const validationResult = userSchema_1.loginSchema.safeParse(req.body);
+    if (!validationResult.success) {
+        res.status(400).json({ errors: validationResult.error.errors });
+        return;
+    }
+    const { email, password } = validationResult.data;
     try {
         const user = await User_1.default.findOne({ email });
         if (!user) {
@@ -39,10 +50,10 @@ const loginuser = async (req, res) => {
             return;
         }
         const secret = process.env.JWT_SECRET || "cypres";
-        // const token = jwt.sign({ id: user._id, role: user.role }, secret, {
-        //   expiresIn: "1h",
-        // });
-        const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, secret);
+        const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, secret, {
+            expiresIn: "1h",
+        });
+        // const token = jwt.sign({ id: user._id, role: user.role }, secret);
         res.status(200).json({ message: "Login successful", token });
     }
     catch (error) {

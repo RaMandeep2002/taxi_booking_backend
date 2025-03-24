@@ -8,6 +8,7 @@ const crypto_1 = __importDefault(require("crypto"));
 // import bcrypt from "bcryptjs";
 const BookingModels_1 = __importDefault(require("../models/BookingModels"));
 const User_1 = __importDefault(require("../models/User"));
+const bookingSchema_1 = require("../schema/bookingSchema");
 const generateBookingId = () => {
     const bookingId = crypto_1.default.randomBytes(4).toString("hex");
     return bookingId;
@@ -21,7 +22,12 @@ function getWeekNumber(date) {
 ;
 const bookingRide = async (req, res) => {
     try {
-        const { customerName, phoneNumber, pickup, dropOff, pickuptime, } = req.body;
+        const validationResult = bookingSchema_1.bookingSchema.safeParse(req.body);
+        if (!validationResult.success) {
+            res.status(400).json({ errors: validationResult.error.errors });
+            return;
+        }
+        const { customerName, phoneNumber, pickup, dropOff, pickuptime, } = validationResult.data;
         if (!customerName ||
             !phoneNumber ||
             !pickup ||
@@ -31,16 +37,13 @@ const bookingRide = async (req, res) => {
             return;
         }
         const pickupDate = new Date(pickuptime);
-        if (isNaN(pickupDate.getTime())) {
-            res.status(400).json({ message: "Invalid pickup time format. Use ISO format (YYYY-MM-DDTHH:mm:ss.sssZ)" });
-            return;
-        }
-        if (pickupDate < new Date()) {
-            res.status(400).json({ message: "Invaild or past pickup time." });
+        const pickupDateIST = new Date(pickupDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        const currentDateIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+        if (pickupDateIST < currentDateIST) {
+            res.status(400).json({ message: "Pickup time cannot be in the past" });
             return;
         }
         const pickupDateISO = pickupDate.toISOString().split("T")[0];
-        // Check if user already has a booking for this pickup time
         const existingBooking = await BookingModels_1.default.findOne({
             phoneNumber,
             pickupDate: pickupDateISO,
@@ -57,7 +60,12 @@ const bookingRide = async (req, res) => {
             phoneNumber,
             pickup,
             dropOff,
-            pickuptime: pickupDate.toISOString(),
+            pickuptime: new Intl.DateTimeFormat("en-IN", {
+                hour: "2-digit",
+                minute: "2-digit",
+                hour12: true,
+                timeZone: "Asia/Kolkata"
+            }).format(pickupDate),
             pickupDate: pickupDateISO,
             pickupTimeFormatted: new Intl.DateTimeFormat("en-IN", {
                 hour: "2-digit",
@@ -68,6 +76,7 @@ const bookingRide = async (req, res) => {
             pickupMonth: pickupDate.toLocaleString("default", { month: "long" }),
             pickupWeek: getWeekNumber(pickupDate)
         });
+        console.log("newBooking ===> ", newBooking);
         await newBooking.save();
         res
             .status(201)

@@ -42,7 +42,7 @@ app.get("/", (req: Request, res: Response) => {
 app.use("/customer", bookigRouter);
 app.use("/api/auth", authRouter);
 app.use("/admin", adminRouter);
-app.use("/driver", driverRoute);
+app.use("/api/driver", driverRoute);
 
 app.listen(PORT, () => {
   console.log(`server is listen on http://localhost:${PORT}`);

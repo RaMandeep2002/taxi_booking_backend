@@ -11,6 +11,7 @@ const BookingRide_1 = require("../controller/BookingRide");
 const router = express_1.default.Router();
 router.get("/adminInfo", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.getAdminInfo);
 router.post("/add-driver", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.adddriver);
+router.post("/add-multi-driver", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.addMultipleDrivers);
 router.get("/driver-details", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.getDriverDetails);
 router.put("/update-driver/:driverId", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.upadateDriver);
 router.delete("/delete-driver/:driverId", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.deleteDriver);
@@ -27,4 +28,5 @@ router.get("/getDriverWithVehicleexculudeDriver", authMiddleware_1.authenticate,
 // router.get("/report-csv",authenticate, authorize(["admin"]), gettingReport);
 router.get("/report-csv", adminController_1.gettingReport);
 router.get("/bookings", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.getBookingdeteails);
+router.post("/settings", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.setting);
 exports.default = router;

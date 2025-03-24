@@ -17,6 +17,8 @@ import {
   getDriverListWithVehicle,
   getDriverWithVehicleexculudeDriver,
   getBookingdeteails,
+  addMultipleDrivers,
+  setting,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -24,6 +26,7 @@ const router = express.Router();
 
 router.get("/adminInfo", authenticate, authorize(["admin"]), getAdminInfo);
 router.post("/add-driver", authenticate, authorize(["admin"]), adddriver);
+router.post("/add-multi-driver", authenticate, authorize(["admin"]),addMultipleDrivers );
 router.get(
   "/driver-details",
   authenticate,
@@ -91,5 +94,8 @@ router.get("/getDriverWithVehicleexculudeDriver",authenticate, authorize(["admin
 // router.get("/report-csv",authenticate, authorize(["admin"]), gettingReport);
 router.get("/report-csv", gettingReport);
 router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
+
+
+router.post("/settings", authenticate, authorize(["admin"]), setting);
 
 export default router;

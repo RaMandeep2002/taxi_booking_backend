@@ -16,13 +16,13 @@ const authenticate = (req, res, next) => {
         const decoded = jsonwebtoken_1.default.verify(token, secret);
         req.user = decoded;
         if (!req.user.id) {
-            res.status(403).json({ message: "Invalid token structure" });
+            res.status(401).json({ message: "Invalid token structure" });
             return;
         }
         next();
     }
     catch (error) {
-        res.status(400).json({ error: "Invaild Token" });
+        res.status(401).json({ error: "Invaild Token" });
         return;
     }
 };

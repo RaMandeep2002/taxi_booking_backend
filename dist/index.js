@@ -38,7 +38,7 @@ app.get("/", (req, res) => {
 app.use("/customer", bookingRouter_1.default);
 app.use("/api/auth", authRouter_1.default);
 app.use("/admin", adminRouter_1.default);
-app.use("/driver", driverRoute_1.default);
+app.use("/api/driver", driverRoute_1.default);
 app.listen(PORT, () => {
     console.log(`server is listen on http://localhost:${PORT}`);
 });
