@@ -558,7 +558,7 @@ export const start_Ride = async (req: Request, res: Response) => {
       pickupMonth: new Date().toLocaleString('default', { month: 'long' }),
       pickupWeek: Math.ceil(new Date().getDate() / 7),
       driver: driver._id,
-      status: "accepted",
+      status: "ongoing",
       arrived: true,
       paymentStatus: "pending",
       paymentMethod: "cash" // Default payment method
