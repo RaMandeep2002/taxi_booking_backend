@@ -438,6 +438,7 @@ const start_Ride = async (req, res) => {
             res.status(400).json({ message: "No active shift found" });
             return;
         }
+        console.log(" latitude, longitude, address  ==> ", latitude, longitude, address);
         // Generate booking ID (you'll need to implement this function)
         const bookingId = generateBookingId();
         // Create new booking
@@ -533,15 +534,15 @@ const end_Ride = async (req, res) => {
             return;
         }
         const totalFare = BASE_FARE_PRICE * distance;
-        const time = new Date();
+        // const time = new Date();
         activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
         activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
         booking.status = "completed";
         driver.status = "available";
         booking.distance += distance;
         booking.totalFare += totalFare;
-        booking.dropdownDate = time.toISOString().split("T")[0];
-        booking.dropdownTime = time.toISOString();
+        booking.dropdownDate = new Date().toLocaleDateString();
+        booking.dropdownTime = new Date().toLocaleTimeString();
         booking.dropOff = {
             latitude: dropLatitude,
             longitude: dropLongitude,

@@ -637,7 +637,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     }
 
     const totalFare = BASE_FARE_PRICE * distance;
-    const time = new Date();
+    // const time = new Date();
 
     activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
@@ -646,8 +646,8 @@ export const end_Ride = async (req: Request, res: Response) => {
     driver.status = "available";
     booking.distance += distance;
     booking.totalFare += totalFare;
-    booking.dropdownDate = time.toISOString().split("T")[0];
-    booking.dropdownTime = time.toISOString();
+    booking.dropdownDate =  new Date().toLocaleDateString();
+    booking.dropdownTime = new Date().toLocaleTimeString();
     booking.dropOff = {
       latitude: dropLatitude,
       longitude: dropLongitude,
