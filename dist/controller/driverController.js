@@ -416,13 +416,12 @@ exports.getBookingdeteails = getBookingdeteails;
 // new api endpoints
 const start_Ride = async (req, res) => {
     const { driverId } = req.params;
-    const { customerName, phoneNumber, pickup: { latitude, longitude, address }, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
+    const { customerName, phoneNumber, pickup: { latitude, longitude, address } } = req.body;
     // Validate required fields
     if (!driverId || !customerName || !phoneNumber ||
-        !latitude || !longitude || !address ||
-        !dropLatitude || !dropLongitude || !dropAddress) {
+        !latitude || !longitude || !address) {
         res.status(400).json({
-            message: "All fields are required: customerName, phoneNumber, pickup location, and drop-off location"
+            message: "All fields are required: customerName, phoneNumber, and pickup location"
         });
         return;
     }
@@ -452,9 +451,9 @@ const start_Ride = async (req, res) => {
                 address
             },
             dropOff: {
-                latitude: dropLatitude,
-                longitude: dropLongitude,
-                address: dropAddress
+                latitude: null,
+                longitude: null,
+                address: null
             },
             pickuptime: new Date().toLocaleTimeString(),
             pickupDate: new Date().toLocaleDateString(),
@@ -462,7 +461,7 @@ const start_Ride = async (req, res) => {
             pickupMonth: new Date().toLocaleString('default', { month: 'long' }),
             pickupWeek: Math.ceil(new Date().getDate() / 7),
             driver: driver._id,
-            status: "accepted",
+            status: "ongoing",
             arrived: true,
             paymentStatus: "pending",
             paymentMethod: "cash" // Default payment method
@@ -498,15 +497,15 @@ function generateBookingId() {
 }
 const end_Ride = async (req, res) => {
     const { driverId } = req.params;
-    const { bookingId, distance } = req.body;
-    if (!driverId || !bookingId) {
-        res.status(400).json({ message: "driverId and bookingId in not valid" });
+    const { bookingId, distance, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
+    if (!driverId || !bookingId || !dropLatitude || !dropLongitude || !dropAddress) {
+        res.status(400).json({ message: "driverId, bookingId, and drop-off location are required" });
         return;
     }
     try {
         const settings = await SettingModels_1.SettingSchemaModel.findOne();
         if (!settings) {
-            res.status(404).json({ message: "No settting found!!" });
+            res.status(404).json({ message: "No setting found!!" });
             return;
         }
         const BASE_FARE_PRICE = settings.basePrice;
@@ -530,7 +529,7 @@ const end_Ride = async (req, res) => {
             return;
         }
         if (driver.status !== "busy") {
-            res.status(400).json({ message: "Driver in not busy" });
+            res.status(400).json({ message: "Driver is not busy" });
             return;
         }
         const totalFare = BASE_FARE_PRICE * distance;
@@ -543,6 +542,11 @@ const end_Ride = async (req, res) => {
         booking.totalFare += totalFare;
         booking.dropdownDate = time.toISOString().split("T")[0];
         booking.dropdownTime = time.toISOString();
+        booking.dropOff = {
+            latitude: dropLatitude,
+            longitude: dropLongitude,
+            address: dropAddress
+        };
         activeShift.totalEarnings += totalFare;
         activeShift.totalDistance += distance;
         await activeShift.save();

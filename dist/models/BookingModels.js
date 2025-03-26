@@ -48,15 +48,15 @@ const BookingSchema = new mongoose_1.Schema({
         required: true,
     },
     pickup: {
-        latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true },
-        address: { type: String, required: true },
+        latitude: { type: Number },
+        longitude: { type: Number },
+        address: { type: String },
     },
     dropOff: {
         // Fixed key name to match the IBooking interface
-        latitude: { type: Number, required: true },
-        longitude: { type: Number, required: true },
-        address: { type: String, required: true },
+        latitude: { type: Number },
+        longitude: { type: Number },
+        address: { type: String },
     },
     pickuptime: {
         type: String,

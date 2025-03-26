@@ -27,7 +27,7 @@ app.get("/", (req, res) => {
     try {
         res.status(200).json({
             success: true,
-            message: "Welcome to the cypresstaxi API",
+            message: "Welcome to the Salmon arm taxi API",
         });
     }
     catch (error) {
