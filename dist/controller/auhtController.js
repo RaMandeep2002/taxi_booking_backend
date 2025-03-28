@@ -50,10 +50,10 @@ const loginuser = async (req, res) => {
             return;
         }
         const secret = process.env.JWT_SECRET || "cypres";
-        const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, secret, {
-            expiresIn: "1h",
-        });
-        // const token = jwt.sign({ id: user._id, role: user.role }, secret);
+        // const token = jwt.sign({ id: user._id, role: user.role }, secret, {
+        //   expiresIn: "1h",
+        // });
+        const token = jsonwebtoken_1.default.sign({ id: user._id, role: user.role }, secret);
         res.status(200).json({ message: "Login successful", token });
     }
     catch (error) {
