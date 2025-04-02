@@ -16,8 +16,8 @@ export const DriverAddSchema = z.object({
 })
 // make, vehicleModel, year, status
 export const registerVehicleSchema = z.object({
-    make: z.string().min(6, "Car make atleast more than 6 charaters"),
-    vehicleModel: z.string().min(6, "Car vehicleModel atleast more than 6 charaters"),
+    make: z.string().max(3, "Car make atleast more than 6 charaters"),
+    vehicleModel: z.string().min(3, "Car vehicleModel atleast more than 6 charaters"),
     year:z.number(),
     status: z.enum(["active", "free"]) 
 })

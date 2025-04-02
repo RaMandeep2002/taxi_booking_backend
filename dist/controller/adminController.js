@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setting = exports.getBookingdeteails = exports.gettingReport = exports.deleteBookingdata = exports.removeVehicle = exports.updateVehicleInfomation = exports.getDriverWithVehicleandshifts = exports.getDriverWithVehicle = exports.getDriverListWithVehicle = exports.getDriverWithVehicleexculudeDriver = exports.registerVehicle = exports.deleteDriver = exports.upadateDriver = exports.getDriverDetails = exports.addMultipleDrivers = exports.adddriver = exports.getAdminInfo = void 0;
+exports.getsetting = exports.setting = exports.getBookingdeteails = exports.gettingReport = exports.deleteBookingdata = exports.removeVehicle = exports.updateVehicleInfomation = exports.getDriverWithVehicleandshifts = exports.getDriverWithVehicle = exports.getDriverListWithVehicle = exports.getDriverWithVehicleexculudeDriver = exports.registerVehicle = exports.deleteDriver = exports.upadateDriver = exports.getDriverDetails = exports.addMultipleDrivers = exports.adddriver = exports.getAdminInfo = void 0;
 const User_1 = __importDefault(require("../models/User"));
 const VehicleModel_1 = require("../models/VehicleModel");
 const DriverModel_1 = require("../models/DriverModel");
@@ -285,7 +285,9 @@ const deleteDriver = async (req, res) => {
 exports.deleteDriver = deleteDriver;
 const registerVehicle = async (req, res) => {
     const { driverId } = req.params;
+    console.log(req.body);
     const validationResult = DriverSchema_1.registerVehicleSchema.safeParse(req.body);
+    console.log("validation result ==> ", validationResult);
     if (!validationResult.success) {
         res.status(400).json({ errors: validationResult.error.errors });
         return;
@@ -694,3 +696,17 @@ const setting = async (req, res) => {
     }
 };
 exports.setting = setting;
+const getsetting = async (req, res) => {
+    try {
+        const settings = await SettingModels_1.SettingSchemaModel.find();
+        if (!settings) {
+            res.status(404).json({ message: "Settings not found!!" });
+            return;
+        }
+        res.status(200).json({ message: "Setting fetch Successfully", settings });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Something worng!!", error });
+    }
+};
+exports.getsetting = getsetting;

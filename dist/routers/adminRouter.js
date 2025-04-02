@@ -29,4 +29,5 @@ router.get("/getDriverWithVehicleexculudeDriver", authMiddleware_1.authenticate,
 router.get("/report-csv", adminController_1.gettingReport);
 router.get("/bookings", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.getBookingdeteails);
 router.post("/settings", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.setting);
+router.get("/settings", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["admin"]), adminController_1.getsetting);
 exports.default = router;

@@ -19,8 +19,8 @@ exports.DriverAddSchema = zod_1.z.object({
 });
 // make, vehicleModel, year, status
 exports.registerVehicleSchema = zod_1.z.object({
-    make: zod_1.z.string().min(6, "Car make atleast more than 6 charaters"),
-    vehicleModel: zod_1.z.string().min(6, "Car vehicleModel atleast more than 6 charaters"),
+    make: zod_1.z.string().max(3, "Car make atleast more than 6 charaters"),
+    vehicleModel: zod_1.z.string().min(3, "Car vehicleModel atleast more than 6 charaters"),
     year: zod_1.z.number(),
     status: zod_1.z.enum(["active", "free"])
 });

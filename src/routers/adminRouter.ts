@@ -19,6 +19,7 @@ import {
   getBookingdeteails,
   addMultipleDrivers,
   setting,
+  getsetting,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -97,5 +98,6 @@ router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
 
 
 router.post("/settings", authenticate, authorize(["admin"]), setting);
+router.get("/settings", authenticate, authorize(["admin"]), getsetting);
 
 export default router;

@@ -3,13 +3,27 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.end_Ride = exports.start_Ride = exports.getBookingdeteails = exports.deteleallShiftsHistory = exports.cancelRide = exports.endRide = exports.startRide = exports.cofirmRide = exports.stopShift = exports.startShift = exports.getTheDriverVechicle = exports.updateDriverStatus = void 0;
+exports.end_Ride = exports.start_Ride = exports.getBookingdeteails = exports.deteleallShiftsHistory = exports.cancelRide = exports.cofirmRide = exports.stopShift = exports.startShift = exports.getTheDriverVechicle = exports.updateDriverStatus = exports.getDriverId = void 0;
 const DriverModel_1 = require("../models/DriverModel");
 const ShiftModel_1 = require("../models/ShiftModel");
 const BookingModels_1 = __importDefault(require("../models/BookingModels"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const SettingModels_1 = require("../models/SettingModels");
 // import { generateBookingId } from '../utils/generateId'; // You'll need to create this utility function
+const getDriverId = (token) => {
+    if (!token)
+        return null;
+    try {
+        const secret = process.env.JWT_SECRET || "cypress"; // Ensure this is set in your .env file
+        const decoded = jsonwebtoken_1.default.verify(token, secret);
+        return decoded.id || null;
+    }
+    catch (error) {
+        console.error("Invalid or expired token:", error);
+        return null;
+    }
+};
+exports.getDriverId = getDriverId;
 const updateDriverStatus = async (req, res) => {
     const { driverId } = req.params;
     const { status } = req.body;
@@ -34,14 +48,8 @@ const updateDriverStatus = async (req, res) => {
 exports.updateDriverStatus = updateDriverStatus;
 const getTheDriverVechicle = async (req, res) => {
     const token = req.headers.authorization?.split(" ")[1]; // Get the token from the Authorization header
-    if (!token) {
-        return res.status(401).json({ message: "No token provided" });
-    }
+    const driverId = (0, exports.getDriverId)(token);
     try {
-        const secret = process.env.JWT_SECRET || "cypres"; // Use your secret key
-        const decoded = jsonwebtoken_1.default.verify(token, secret);
-        console.log("decoded ====> ", decoded.id);
-        const driverId = decoded.id;
         console.log("driverId ====> ", driverId);
         if (!driverId) {
             res.status(400).json({ message: "DriverID not valild" });
@@ -99,7 +107,8 @@ const getTheDriverVechicle = async (req, res) => {
 };
 exports.getTheDriverVechicle = getTheDriverVechicle;
 const startShift = async (req, res) => {
-    const { driverId } = req.params;
+    const token = req.headers.authorization?.split(" ")[1];
+    const driverId = (0, exports.getDriverId)(token);
     const { vehicleUsed } = req.body;
     try {
         const driver = await DriverModel_1.Driver.findOne({ driverId });
@@ -222,114 +231,111 @@ const cofirmRide = async (req, res) => {
     }
 };
 exports.cofirmRide = cofirmRide;
-const startRide = async (req, res) => {
-    const { driverId } = req.params;
-    const { bookingId } = req.body;
-    if (!driverId || !bookingId) {
-        res.status(400).json({ message: "driverId and bookingId are requried" });
-        return;
-    }
-    try {
-        const driver = await DriverModel_1.Driver.findOne({ driverId });
-        if (!driver) {
-            res.status(404).json({ message: "Driver not found!!" });
-            return;
-        }
-        const activeShift = await ShiftModel_1.Shift.findOne({ driverId: driver.driverId, isActive: true });
-        if (!activeShift) {
-            res.status(400).json({ message: "no active shift found" });
-            return;
-        }
-        const booking = await BookingModels_1.default.findOne({ bookingId });
-        if (!booking) {
-            res.status(404).json({ message: "Booking not found!!" });
-            return;
-        }
-        if (booking.status !== "accepted") {
-            res.status(400).json({ message: "Booking is not accepted" });
-            return;
-        }
-        if (driver.status !== "available") {
-            res.status(400).json({ message: "Driver is not available" });
-            return;
-        }
-        const pickupDate = new Date();
-        activeShift.totalTrips += 1;
-        0;
-        // booking.arrived = new Date().toISOString();
-        booking.arrived = true;
-        booking.status = "ongoing";
-        booking.driver = driver._id;
-        driver.status = "busy";
-        await activeShift.save();
-        await booking.save();
-        await driver.save();
-        res.status(200).json({ message: "Ride started successfully", booking });
-    }
-    catch (error) {
-        res.status(500).json({ message: "Error starting the ride", error });
-    }
-};
-exports.startRide = startRide;
-const endRide = async (req, res) => {
-    const { driverId } = req.params;
-    const { bookingId, distance } = req.body;
-    if (!driverId || !bookingId) {
-        res.status(400).json({ message: "driverId and bookingId in not valid" });
-        return;
-    }
-    try {
-        const settings = await SettingModels_1.SettingSchemaModel.findOne();
-        if (!settings) {
-            res.status(404).json({ message: "No settting found!!" });
-            return;
-        }
-        const BASE_FARE_PRICE = settings.basePrice;
-        const driver = await DriverModel_1.Driver.findOne({ driverId });
-        if (!driver) {
-            res.status(404).json({ message: "Driver not found!!" });
-            return;
-        }
-        const activeShift = await ShiftModel_1.Shift.findOne({ driverId: driver.driverId, isActive: true });
-        if (!activeShift) {
-            res.status(400).json({ message: "no active shift found" });
-            return;
-        }
-        const booking = await BookingModels_1.default.findOne({ bookingId });
-        if (!booking) {
-            res.status(404).json({ message: "Booking not found!!" });
-            return;
-        }
-        if (booking.status !== "ongoing") {
-            res.status(400).json({ message: "Booking is not ongoing" });
-            return;
-        }
-        if (driver.status !== "busy") {
-            res.status(400).json({ message: "Driver in not busy" });
-            return;
-        }
-        const totalFare = BASE_FARE_PRICE * distance;
-        const time = new Date();
-        activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
-        activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
-        booking.status = "completed";
-        driver.status = "available";
-        booking.distance += distance;
-        booking.totalFare += totalFare;
-        booking.dropdownDate = time.toISOString().split("T")[0];
-        booking.dropdownTime = time.toISOString();
-        activeShift.totalEarnings += totalFare;
-        activeShift.totalDistance += distance;
-        await activeShift.save();
-        await booking.save();
-        await driver.save();
-        res.status(200).json({ message: "Ride ended successfully", booking });
-    }
-    catch (error) {
-        res.status(500).json({ message: "Error ending the ride", error });
-    }
-};
-exports.endRide = endRide;
+// export const startRide = async (req: Request, res: Response) => {
+//   const { driverId } = req.params;
+//   const { bookingId } = req.body;
+//   if (!driverId || !bookingId) {
+//     res.status(400).json({ message: "driverId and bookingId are requried" })
+//     return;
+//   }
+//   try {
+//     const driver = await Driver.findOne({ driverId });
+//     if (!driver) {
+//       res.status(404).json({ message: "Driver not found!!" });
+//       return; 
+//     }
+//     const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+//     if (!activeShift) {
+//       res.status(400).json({ message: "no active shift found" });
+//       return;
+//     }
+//     const booking = await BookingModels.findOne({ bookingId });
+//     if (!booking) {
+//       res.status(404).json({ message: "Booking not found!!" });
+//       return;
+//     }
+//     if (booking.status !== "accepted") {
+//       res.status(400).json({ message: "Booking is not accepted" });
+//       return;
+//     }
+//     if (driver.status !== "available") {
+//       res.status(400).json({ message: "Driver is not available" });
+//       return;
+//     }
+//     const pickupDate = new Date();
+//     activeShift.totalTrips += 1;0
+//     // booking.arrived = new Date().toISOString();
+//     booking.arrived = true;
+//     booking.status = "ongoing";
+//     booking.driver = driver._id as Types.ObjectId;
+//     driver.status = "busy";
+//     await activeShift.save();
+//     await booking.save();
+//     await driver.save();
+//     res.status(200).json({ message: "Ride started successfully", booking });
+//   }
+//   catch (error) {
+//     res.status(500).json({ message: "Error starting the ride", error });
+//   }
+// }
+// export const endRide = async (req: Request, res: Response) => {
+//   const { driverId } = req.params;
+//   const { bookingId, distance } = req.body;
+//   if (!driverId || !bookingId) {
+//     res.status(400).json({ message: "driverId and bookingId in not valid" });
+//     return;
+//   }
+//   try {
+//     const settings = await SettingSchemaModel.findOne();
+//     if(!settings){
+//       res.status(404).json({message:"No settting found!!"});
+//       return;
+//     }
+//     const BASE_FARE_PRICE = settings.basePrice;
+//     const driver = await Driver.findOne({ driverId });
+//     if (!driver) {
+//       res.status(404).json({ message: "Driver not found!!" });
+//       return;
+//     }
+//     const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+//     if (!activeShift) {
+//       res.status(400).json({ message: "no active shift found" });
+//       return;
+//     }
+//     const booking = await BookingModels.findOne({ bookingId });
+//     if (!booking) {
+//       res.status(404).json({ message: "Booking not found!!" });
+//       return;
+//     }
+//     if (booking.status !== "ongoing") {
+//       res.status(400).json({ message: "Booking is not ongoing" });
+//       return;
+//     }
+//     if (driver.status !== "busy") {
+//       res.status(400).json({ message: "Driver in not busy" });
+//       return;
+//     }
+//     const totalFare = BASE_FARE_PRICE * distance;
+//     const time = new Date();
+//     activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
+//     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
+//     booking.status = "completed";
+//     driver.status = "available";
+//     booking.distance += distance;
+//     booking.totalFare += totalFare;
+//     booking.dropdownDate = time.toISOString().split("T")[0];
+//     booking.dropdownTime = time.toISOString();
+//     activeShift.totalEarnings += totalFare;
+//     activeShift.totalDistance += distance;
+//     await activeShift.save();
+//     await booking.save();
+//     await driver.save();
+//     res.status(200).json({ message: "Ride ended successfully", booking });
+//   }
+//   catch (error) {
+//     res.status(500).json({ message: "Error ending the ride", error });
+//   }
+// }
 const cancelRide = async (req, res) => {
     const { driverId } = req.params;
     const { bookingId } = req.body;

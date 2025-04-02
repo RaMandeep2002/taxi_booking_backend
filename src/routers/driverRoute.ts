@@ -4,10 +4,10 @@ import {
   cofirmRide,
   deteleallShiftsHistory,
   end_Ride,
-  endRide,
+  // endRide,
   getTheDriverVechicle,
   start_Ride,
-  startRide,
+  // startRide,
   startShift,
   stopShift,
   updateDriverStatus,
@@ -21,7 +21,7 @@ const router = express.Router();
 // router.post("/driver_login", driverLogin);
 router.get("/getDriverVechile", authenticate, authorize(["driver"]), getTheDriverVechicle as express.RequestHandler);
 router.post(
-  "/start-shift/:driverId",
+  "/start-shift",
   authenticate,
   authorize(["driver"]),
   startShift,

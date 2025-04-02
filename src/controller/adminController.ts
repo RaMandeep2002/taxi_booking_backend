@@ -322,9 +322,12 @@ export const deleteDriver = async (req: Request, res: Response) => {
   }
 };
 
+
 export const registerVehicle = async (req: Request, res: Response) => {
   const { driverId } = req.params;
+  console.log(req.body);
   const validationResult = registerVehicleSchema.safeParse(req.body);
+  console.log("validation result ==> ", validationResult);
   if (!validationResult.success) {
     res.status(400).json({ errors: validationResult.error.errors });
     return;
@@ -772,6 +775,38 @@ export const setting = async(req:Request, res:Response) =>{
 
     res.status(200).json({message:"Setting Update Successfully", settings});
   }
+  catch(error:any){
+    res.status(500).json({message:"Something worng!!", error});
+  }
+}
+
+export const updateSettings = async(req:Request, res:Response) =>{
+  const validationResult = SettingSchema.safeParse(req.body);
+
+  if (!validationResult.success) {
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
+  }
+  const {basePrice, pricePerKm } = validationResult.data;
+
+  if(!basePrice || !pricePerKm){
+    res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
+    return;
+  }
+}
+
+export const getsetting = async(req:Request, res:Response) =>{
+
+    try{
+      const settings = await SettingSchemaModel.find();
+
+      if(!settings){
+        res.status(404).json({message:"Settings not found!!"});
+        return;
+      }
+
+      res.status(200).json({message:"Setting fetch Successfully", settings});
+    }
   catch(error:any){
     res.status(500).json({message:"Something worng!!", error});
   }

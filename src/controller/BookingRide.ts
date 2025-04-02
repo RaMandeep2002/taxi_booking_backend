@@ -4,6 +4,7 @@ import crypto, { Verify } from "crypto";
 import BookingModels, { IBooking } from "../models/BookingModels";
 import User from "../models/User";
 import { bookingSchema } from "../schema/bookingSchema";
+import redisClinet from "../config/redis";
 
 const generateBookingId = () => {
   const bookingId = crypto.randomBytes(4).toString("hex");
@@ -121,8 +122,16 @@ export const getAllBookingRider = async (req:Request, res: Response) => {
 
 
 
-export const bookingHistory = async (req: Request, res: Response) => {
+export const bookingHistory = async (req: Request, res: Response): Promise<void> => {
   try {
+
+    const cacheKey = "bookingHistory"; // Define a unique cache key
+    const cachedData = await redisClinet.get(cacheKey); // Check if data is in Redis
+
+    if (cachedData) {
+       res.status(200).json({ message: "Fetched from cache", bookings: JSON.parse(cachedData) });
+       return;
+    }
     const bookings = await BookingModels.aggregate([
         {
           $lookup: {
@@ -171,6 +180,8 @@ export const bookingHistory = async (req: Request, res: Response) => {
       res.status(404).json({ message: "No booking found" });
       return;
     }
+
+    await redisClinet.set(cacheKey, JSON.stringify(bookings), { EX: 600 });
 
     res.status(200).json({message:"Successfully fetch the History", bookings});
   } catch (error) {

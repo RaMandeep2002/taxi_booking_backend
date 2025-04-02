@@ -11,7 +11,7 @@ const BookingRide_1 = require("../controller/BookingRide");
 const router = express_1.default.Router();
 // router.post("/driver_login", driverLogin);
 router.get("/getDriverVechile", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["driver"]), driverController_1.getTheDriverVechicle);
-router.post("/start-shift/:driverId", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["driver"]), driverController_1.startShift);
+router.post("/start-shift", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["driver"]), driverController_1.startShift);
 router.post("/stop-shift/:driverId", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["driver"]), driverController_1.stopShift);
 router.post("/start-ride/:driverId", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["driver"]), driverController_1.start_Ride);
 router.post("/stop-ride/:driverId", authMiddleware_1.authenticate, (0, roleMiddleware_1.authorize)(["driver"]), driverController_1.end_Ride);
