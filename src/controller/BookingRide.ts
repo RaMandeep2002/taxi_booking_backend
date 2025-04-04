@@ -11,7 +11,7 @@ const generateBookingId = () => {
   return bookingId;
 };
 
-function getWeekNumber (date: Date): number{
+function getWeekNumber(date: Date): number {
   const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
   const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
   const weekNumber = Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
@@ -21,8 +21,8 @@ function getWeekNumber (date: Date): number{
 export const bookingRide = async (req: Request, res: Response) => {
   try {
     const validationResult = bookingSchema.safeParse(req.body)
-    if(!validationResult.success){
-      res.status(400).json({errors: validationResult.error.errors});
+    if (!validationResult.success) {
+      res.status(400).json({ errors: validationResult.error.errors });
       return;
     }
     const {
@@ -38,28 +38,28 @@ export const bookingRide = async (req: Request, res: Response) => {
       !phoneNumber ||
       !pickup ||
       !dropOff ||
-      !pickuptime 
+      !pickuptime
     ) {
       res.status(400).json({ message: "Missing required fields." });
       return;
     }
 
     const pickupDate = new Date(pickuptime);
-   
+
     const pickupDateIST = new Date(pickupDate.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const currentDateIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
-    if(pickupDateIST < currentDateIST){
-      res.status(400).json({message:"Pickup time cannot be in the past"});
+    if (pickupDateIST < currentDateIST) {
+      res.status(400).json({ message: "Pickup time cannot be in the past" });
       return;
     }
 
     const pickupDateISO = pickupDate.toISOString().split("T")[0];
-    
+
     const existingBooking = await BookingModels.findOne({
       phoneNumber,
       pickupDate: pickupDateISO,
       status: { $ne: "cancelled" } // Exclude cancelled bookings
-    }); 
+    });
 
     if (existingBooking) {
       res.status(400).json({ message: "You already have an active booking for this date" });
@@ -73,7 +73,7 @@ export const bookingRide = async (req: Request, res: Response) => {
       phoneNumber,
       pickup,
       dropOff,
-      pickuptime:  new Intl.DateTimeFormat("en-IN", {
+      pickuptime: new Intl.DateTimeFormat("en-IN", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
@@ -97,13 +97,13 @@ export const bookingRide = async (req: Request, res: Response) => {
       .status(201)
       .json({ message: "Booking created successfully", booking: newBooking });
   } catch (error: any) {
-    res.status(400).json({ message: error.message }); 
+    res.status(400).json({ message: error.message });
     console.log("Something went wrong! ==> ", error.message);
   }
 };
 
 
-export const getAllBookingRider = async (req:Request, res: Response) => {
+export const getAllBookingRider = async (req: Request, res: Response) => {
   console.log("entered")
   try {
     // const { bookingId } = req.params;
@@ -121,17 +121,16 @@ export const getAllBookingRider = async (req:Request, res: Response) => {
 };
 
 
-
-export const bookingHistory = async (req: Request, res: Response): Promise<void> => {
+export const bookingHistory = async (req: Request, res: Response) => {
   try {
 
-    const cacheKey = "bookingHistory"; // Define a unique cache key
-    const cachedData = await redisClinet.get(cacheKey); // Check if data is in Redis
+    // const cacheKey = "bookingHistory"; // Define a unique cache key
+    // const cachedData = await redisClinet.get(cacheKey); // Check if data is in Redis
 
-    if (cachedData) {
-       res.status(200).json({ message: "Fetched from cache", bookings: JSON.parse(cachedData) });
-       return;
-    }
+    // if (cachedData) {
+    //    res.status(200).json({ message: "Fetched from cache", bookings: JSON.parse(cachedData) });
+    //    return;
+    // }
     const bookings = await BookingModels.aggregate([
         {
           $lookup: {
@@ -155,17 +154,19 @@ export const bookingHistory = async (req: Request, res: Response): Promise<void>
             as:"driver.vehicles"
           }
         },
-        {
-          $unwind: {
-            path: "$driver.vehicles",
-            preserveNullAndEmptyArrays: true, 
-          },
-        },
+        // {
+        //   $unwind: {
+        //     path: "$driver.vehicles",
+        //     preserveNullAndEmptyArrays: true, 
+        //   },
+        // },
         {
           $project: {
             bookingId: 1,
             customerName: 1,
-            pickuptime: 1,
+            pickupDate: 1,
+            pickup: 1,
+            dropOff: 1,
             totalFare:1,
             paymentStatus: 1,
             status: 1,
@@ -176,12 +177,14 @@ export const bookingHistory = async (req: Request, res: Response): Promise<void>
         },
       ])
 
+      console.log("Bookings ===> ", bookings)
+
     if (!bookings.length) {
       res.status(404).json({ message: "No booking found" });
       return;
     }
 
-    await redisClinet.set(cacheKey, JSON.stringify(bookings), { EX: 600 });
+    // await redisClinet.set(cacheKey, JSON.stringify(bookings), { EX: 600 });
 
     res.status(200).json({message:"Successfully fetch the History", bookings});
   } catch (error) {
@@ -190,18 +193,19 @@ export const bookingHistory = async (req: Request, res: Response): Promise<void>
 };
 
 
-export const getTheUserInformation = async(req:Request, res:Response) =>{
-  try{
+
+export const getTheUserInformation = async (req: Request, res: Response) => {
+  try {
     const users = await User.find({ role: "customer" });
     console.log("users ===> ", users);
 
-    if(!users) {
-      res.status(404).json({message:"users not found!!"});
+    if (!users) {
+      res.status(404).json({ message: "users not found!!" });
     }
 
-    res.status(200).json({message:"users fetch successfully!!", users});
+    res.status(200).json({ message: "users fetch successfully!!", users });
   }
-  catch(error){
-    res.status(500).json({message:"Failed to fetch the users!!", error});
+  catch (error) {
+    res.status(500).json({ message: "Failed to fetch the users!!", error });
   }
 }

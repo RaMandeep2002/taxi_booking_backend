@@ -9,7 +9,6 @@ const crypto_1 = __importDefault(require("crypto"));
 const BookingModels_1 = __importDefault(require("../models/BookingModels"));
 const User_1 = __importDefault(require("../models/User"));
 const bookingSchema_1 = require("../schema/bookingSchema");
-const redis_1 = __importDefault(require("../config/redis"));
 const generateBookingId = () => {
     const bookingId = crypto_1.default.randomBytes(4).toString("hex");
     return bookingId;
@@ -108,12 +107,12 @@ const getAllBookingRider = async (req, res) => {
 exports.getAllBookingRider = getAllBookingRider;
 const bookingHistory = async (req, res) => {
     try {
-        const cacheKey = "bookingHistory"; // Define a unique cache key
-        const cachedData = await redis_1.default.get(cacheKey); // Check if data is in Redis
-        if (cachedData) {
-            res.status(200).json({ message: "Fetched from cache", bookings: JSON.parse(cachedData) });
-            return;
-        }
+        // const cacheKey = "bookingHistory"; // Define a unique cache key
+        // const cachedData = await redisClinet.get(cacheKey); // Check if data is in Redis
+        // if (cachedData) {
+        //    res.status(200).json({ message: "Fetched from cache", bookings: JSON.parse(cachedData) });
+        //    return;
+        // }
         const bookings = await BookingModels_1.default.aggregate([
             {
                 $lookup: {
@@ -137,17 +136,19 @@ const bookingHistory = async (req, res) => {
                     as: "driver.vehicles"
                 }
             },
-            {
-                $unwind: {
-                    path: "$driver.vehicles",
-                    preserveNullAndEmptyArrays: true,
-                },
-            },
+            // {
+            //   $unwind: {
+            //     path: "$driver.vehicles",
+            //     preserveNullAndEmptyArrays: true, 
+            //   },
+            // },
             {
                 $project: {
                     bookingId: 1,
                     customerName: 1,
-                    pickuptime: 1,
+                    pickupDate: 1,
+                    pickup: 1,
+                    dropOff: 1,
                     totalFare: 1,
                     paymentStatus: 1,
                     status: 1,
@@ -157,11 +158,12 @@ const bookingHistory = async (req, res) => {
                 },
             },
         ]);
+        console.log("Bookings ===> ", bookings);
         if (!bookings.length) {
             res.status(404).json({ message: "No booking found" });
             return;
         }
-        await redis_1.default.set(cacheKey, JSON.stringify(bookings), { EX: 600 });
+        // await redisClinet.set(cacheKey, JSON.stringify(bookings), { EX: 600 });
         res.status(200).json({ message: "Successfully fetch the History", bookings });
     }
     catch (error) {

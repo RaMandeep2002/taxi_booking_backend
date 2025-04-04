@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getsetting = exports.setting = exports.getBookingdeteails = exports.gettingReport = exports.deleteBookingdata = exports.removeVehicle = exports.updateVehicleInfomation = exports.getDriverWithVehicleandshifts = exports.getDriverWithVehicle = exports.getDriverListWithVehicle = exports.getDriverWithVehicleexculudeDriver = exports.registerVehicle = exports.deleteDriver = exports.upadateDriver = exports.getDriverDetails = exports.addMultipleDrivers = exports.adddriver = exports.getAdminInfo = void 0;
+exports.getsetting = exports.updateSettings = exports.setting = exports.getBookingdeteails = exports.gettingReport = exports.deleteBookingdata = exports.removeVehicle = exports.updateVehicleInfomation = exports.getDriverWithVehicleandshifts = exports.getDriverWithVehicle = exports.getDriverListWithVehicle = exports.getDriverWithVehicleexculudeDriver = exports.registerVehicle = exports.deleteDriver = exports.upadateDriver = exports.getDriverDetails = exports.addMultipleDrivers = exports.adddriver = exports.getAdminInfo = void 0;
 const User_1 = __importDefault(require("../models/User"));
 const VehicleModel_1 = require("../models/VehicleModel");
 const DriverModel_1 = require("../models/DriverModel");
@@ -696,6 +696,19 @@ const setting = async (req, res) => {
     }
 };
 exports.setting = setting;
+const updateSettings = async (req, res) => {
+    const validationResult = SettingSchema_1.SettingSchema.safeParse(req.body);
+    if (!validationResult.success) {
+        res.status(400).json({ errors: validationResult.error.errors });
+        return;
+    }
+    const { basePrice, pricePerKm } = validationResult.data;
+    if (!basePrice || !pricePerKm) {
+        res.status(400).json({ message: "Both base basePrice and pricePerkm is required!" });
+        return;
+    }
+};
+exports.updateSettings = updateSettings;
 const getsetting = async (req, res) => {
     try {
         const settings = await SettingModels_1.SettingSchemaModel.find();
