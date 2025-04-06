@@ -657,6 +657,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
 
     booking.status = "completed";
+    booking.paymentStatus = "paid";
     driver.status = "available";
     booking.distance += distance;
     booking.totalFare += totalFare;
