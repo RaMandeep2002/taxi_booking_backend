@@ -607,8 +607,7 @@ export const end_Ride = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
 
   const driverId = getDriverId(token);
-  const { vehicleUsed } = req.body;
-  const { bookingId, distance, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
+  const { bookingId,distance, totalFare, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
 
   if (!driverId || !bookingId || !dropLatitude || !dropLongitude || !dropAddress) {
     res.status(400).json({ message: "driverId, bookingId, and drop-off location are required" });
@@ -652,7 +651,6 @@ export const end_Ride = async (req: Request, res: Response) => {
       return;
     }
 
-    const totalFare = BASE_FARE_PRICE * distance;
     // const time = new Date();
 
     activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
