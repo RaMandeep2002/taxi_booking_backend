@@ -172,7 +172,9 @@ export const startShift = async (req: Request, res: Response) => {
 
 
 export const stopShift = async (req: Request, res: Response) => {
-  const { driverId } = req.params;
+  const token = req.headers.authorization?.split(" ")[1];
+
+  const driverId = getDriverId(token);
 
   try {
     const driver = await Driver.findOne({ driverId }).populate("shifts");
@@ -398,7 +400,9 @@ export const cofirmRide = async (req: Request, res: Response) => {
 // }
 
 export const cancelRide = async (req: Request, res: Response) => {
-  const { driverId } = req.params;
+  const token = req.headers.authorization?.split(" ")[1];
+
+  const driverId = getDriverId(token);
   const { bookingId } = req.body;
 
   if (!driverId || !bookingId) {
@@ -503,7 +507,10 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
 // new api endpoints
 
 export const start_Ride = async (req: Request, res: Response) => {
-  const { driverId } = req.params;
+  const token = req.headers.authorization?.split(" ")[1];
+
+  const driverId = getDriverId(token);
+  const { vehicleUsed } = req.body;
   const { 
     customerName,
     phoneNumber,
@@ -597,7 +604,10 @@ function generateBookingId(): string {
 }
 
 export const end_Ride = async (req: Request, res: Response) => {
-  const { driverId } = req.params;
+  const token = req.headers.authorization?.split(" ")[1];
+
+  const driverId = getDriverId(token);
+  const { vehicleUsed } = req.body;
   const { bookingId, distance, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
 
   if (!driverId || !bookingId || !dropLatitude || !dropLongitude || !dropAddress) {

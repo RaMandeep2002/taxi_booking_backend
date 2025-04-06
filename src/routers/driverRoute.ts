@@ -27,20 +27,20 @@ router.post(
   startShift,
 );
 router.post(
-  "/stop-shift/:driverId",
+  "/stop-shift",
   authenticate,
   authorize(["driver"]),
   stopShift,
 );
 router.post(
-  "/start-ride/:driverId",
+  "/start-ride",
   authenticate,
   authorize(["driver"]),
   start_Ride,
 );
 
 router.post(
-  "/stop-ride/:driverId",
+  "/stop-ride",
   authenticate,
   authorize(["driver"]),
   end_Ride,
