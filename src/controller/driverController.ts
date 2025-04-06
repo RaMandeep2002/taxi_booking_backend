@@ -108,7 +108,7 @@ export const getTheDriverVechicle = async (req: Request, res: Response) => {
       return;
     }
 
-    res.status(200).json({ message: "Driver vechicle retrieved successfilly", vechicle: drivercar });
+    res.status(200).json({ message: "Driver vechicle retrieved successfully", vechicle: drivercar });
   }
   catch (error) {
     res.status(500).json({ message: "Error retreving driver vechicle", error });
@@ -116,6 +116,7 @@ export const getTheDriverVechicle = async (req: Request, res: Response) => {
 }
 
 export const startShift = async (req: Request, res: Response) => {
+  console.log("enter");
   const token = req.headers.authorization?.split(" ")[1];
 
   const driverId = getDriverId(token);
