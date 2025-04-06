@@ -93,6 +93,7 @@ export const getTheDriverVechicle = async (req: Request, res: Response) => {
           drivername: 1,
           email: 1,
           vehicle: 1,
+          "vehicleDetails._id": 1,
           "vehicleDetails.make": 1,
           "vehicleDetails.vehicleModel": 1,
           "vehicleDetails.year": 1,
@@ -148,6 +149,61 @@ export const startShift = async (req: Request, res: Response) => {
       driverId,
       startTime,
       startDate,
+      startTimeFormatted,
+      startMonth,
+      startWeek,
+      endTime: null,
+      vehicleUsed,
+      totalEarnings: 0, 
+      totalTrips: 0,
+      totalDistance: 0,
+      isActive: true,
+    };
+
+    const shift = new Shift(newShift);
+    await shift.save();
+    driver.shifts.push(shift._id as any); // Type assertion to fix type error
+    await driver.save();
+
+    res.status(200).json({ message: "Shift started", shift: shift }); // Return saved shift object
+  } catch (error) {
+    res.status(500).json({ message: "Error starting shift", error });
+  }
+};
+export const startShiftwithtime = async (req: Request, res: Response) => {
+  console.log("enter");
+  const token = req.headers.authorization?.split(" ")[1];
+
+  const driverId = getDriverId(token);
+  const { vehicleUsed, startTime, startDate } = req.body;
+
+  try {
+    const driver = await Driver.findOne({ driverId });
+    if (!driver) {
+      res.status(404).json({ message: "Driver not found" });
+      return;
+    }
+    if (!driver.vehicle.includes(vehicleUsed)) {
+      res.status(400).json({ message: "Invalid vehicle" });
+      return;
+    }
+    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+
+    if (activeShift) {
+      res.status(400).json({ message: "A shift is already active" });
+      return;
+    }
+    const shiftStartTime = startTime || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+    const shiftStartDate = startDate || new Date().toLocaleDateString();
+    
+    const startTimeFormatted = `${shiftStartTime}, ${shiftStartDate}`;
+    const startMonth = new Date(shiftStartDate).toLocaleString('default', { month: 'long' });
+    const startWeek = Math.ceil(new Date(shiftStartDate).getDate() / 7);
+    
+    const newShift = {
+      driverId,
+      startTime: shiftStartTime,
+      startDate: shiftStartDate,
       startTimeFormatted,
       startMonth,
       startWeek,

@@ -9,6 +9,7 @@ import {
   start_Ride,
   // startRide,
   startShift,
+  startShiftwithtime,
   stopShift,
   updateDriverStatus,
 } from "../controller/driverController";
@@ -31,6 +32,12 @@ router.post(
   authenticate,
   authorize(["driver"]),
   stopShift,
+);
+router.post(
+  "/stop-shift-with-time",
+  authenticate,
+  authorize(["driver"]),
+  startShiftwithtime,
 );
 router.post(
   "/start-ride",
