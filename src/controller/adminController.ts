@@ -566,12 +566,12 @@ export const gettingReport = async (req: Request, res: Response) => {
       },
       { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
       {
-        $lookup: {
-          from: "vehicles",
-          localField: "driver.vehicle",
-          foreignField: "_id",
-          as: "driver.vehicles",
-        },
+        $lookup:{
+          from:"vehicles",
+          localField:"driver.vehicle",
+          foreignField:"_id",
+          as:"driver.vehicles"
+        }
       },
       { $unwind: { path: "$driver.vehicles", preserveNullAndEmptyArrays: true } },
       {
@@ -610,6 +610,8 @@ export const gettingReport = async (req: Request, res: Response) => {
       },
     ]);
 
+    console.log("bookings ===> ", bookings)
+
     if (!bookings.length) {
       res.status(404).json({ message: "No bookings found" });
       return;
@@ -625,7 +627,7 @@ export const gettingReport = async (req: Request, res: Response) => {
       csvStream.write({
         Booking_ID: booking.bookingId,
         PICKUP_DATE: booking.pickupDate,
-        PICKUP_TIME: booking.pickupTimeFormatted,
+        PICKUP_TIME: booking.pickuptime,
         PICKUP_MONTH: booking.pickupMonth,
         PICKUP_WEEK: booking.pickupWeek,
         ARRIVED: booking.arrived,

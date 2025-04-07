@@ -14,6 +14,7 @@ export const getDriverId = (token?: string): string | null => {
   try {
       const secret = process.env.JWT_SECRET || "cypress"; // Ensure this is set in your .env file
       const decoded = jwt.verify(token, secret) as { id?: string };
+      console.log(decoded);
       return decoded.id || null;
   } catch (error) {
       console.error("Invalid or expired token:", error);

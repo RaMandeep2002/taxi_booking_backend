@@ -7,5 +7,6 @@ export interface AuthRequest extends Request {
 
 export interface UserPayload extends JwtPayload {
   _id: string;
+  driverId:string;
   role: string;
 }
