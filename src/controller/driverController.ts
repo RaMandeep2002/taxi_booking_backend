@@ -50,35 +50,32 @@ export const updateDriverStatus = async (req: Request, res: Response) => {
 };
 
 export const getTheDriverVechicle = async (req: Request, res: Response) => {
-  const token:string|undefined = req.headers.authorization?.split(" ")[1]; // Get the token from the Authorization header
+  const token: string | undefined = req.headers.authorization?.split(" ")[1];
 
   const driverId = getDriverId(token);
-  
+
   try {
-    console.log("driverId ====> ", driverId);         
-  
     if (!driverId) {
-      res.status(400).json({ message: "DriverID not valild" });
-      return;
-    }
-    const driver = await Driver.findOne({ driverId });
-    console.log("Driver ===> ", driver);
-    if (!driver) {
-      res.status(404).json({ message: "Driver not found!!" });
+      res.status(400).json({ message: "Driver ID not valid" });
       return;
     }
 
-    const drivercar = await Driver.aggregate([
+    const driver = await Driver.findOne({ driverId });
+
+    if (!driver) {
+       res.status(404).json({ message: "Driver not found" });
+       return;
+    }
+
+    const driverVehicles = await Driver.aggregate([
       {
-        $match: {
-          driverId: driverId
-        }
+        $match: { driverId: driverId }
       },
       {
         $lookup: {
           from: "vehicles",
           localField: "vehicle",
-          foreignField: "_id", 
+          foreignField: "_id",
           as: "vehicleDetails"
         }
       },
@@ -89,33 +86,37 @@ export const getTheDriverVechicle = async (req: Request, res: Response) => {
         }
       },
       {
+        $replaceRoot: {
+          newRoot: "$vehicleDetails"
+        }
+      },
+      {
         $project: {
           _id: 1,
-          drivername: 1,
-          email: 1,
-          vehicle: 1,
-          "vehicleDetails._id": 1,
-          "vehicleDetails.make": 1,
-          "vehicleDetails.vehicleModel": 1,
-          "vehicleDetails.year": 1,
-          "vehicleDetails.status": 1
+          make: 1,
+          vehicleModel: 1,
+          year: 1,
+          status: 1,
+          registrationNumber: 1
         }
       }
     ]);
 
-    console.log("drivercar ===> ", drivercar);
-
-    if (!drivercar) {
-      res.status(404).json({ message: "Driver have not assign with any vechicle" });
-      return;
+    if (!driverVehicles || driverVehicles.length === 0) {
+       res.status(404).json({ message: "No vehicles assigned to driver" });
+       return;
     }
 
-    res.status(200).json({ message: "Driver vechicle retrieved successfully", vechicle: drivercar });
+    res.status(200).json({
+      message: "Vehicles retrieved successfully",
+      vehicles: driverVehicles
+    });
+
+  } catch (error) {
+    console.error("Error retrieving driver vehicle:", error);
+    res.status(500).json({ message: "Internal server error", error });
   }
-  catch (error) {
-    res.status(500).json({ message: "Error retreving driver vechicle", error });
-  }
-}
+};
 
 export const startShift = async (req: Request, res: Response) => {
   console.log("enter");
@@ -664,6 +665,7 @@ export const end_Ride = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
 
   const driverId = getDriverId(token);
+  // waiting time 
   const { bookingId,distance, totalFare, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
 
   if (!driverId || !bookingId || !dropLatitude || !dropLongitude || !dropAddress) {

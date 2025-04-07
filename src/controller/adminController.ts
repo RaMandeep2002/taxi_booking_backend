@@ -754,9 +754,9 @@ export const setting = async(req:Request, res:Response) =>{
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const {basePrice, pricePerKm } = validationResult.data;
+  const {flag_price,basePrice, pricePerKm } = validationResult.data;
 
-  if(!basePrice || !pricePerKm){
+  if(!flag_price || !basePrice || !pricePerKm){
     res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
     return;
   }
@@ -765,12 +765,13 @@ export const setting = async(req:Request, res:Response) =>{
     let settings = await SettingSchemaModel.findOne();
 
     if(settings){
+      settings.flag_price = flag_price;
       settings.basePrice = basePrice;
       settings.pricePerKm = pricePerKm;
       await settings.save();
     }
     else{
-      settings = new SettingSchemaModel({basePrice, pricePerKm });
+      settings = new SettingSchemaModel({flag_price,basePrice, pricePerKm });
       await settings.save(); 
     }
 
@@ -789,11 +790,35 @@ export const updateSettings = async(req:Request, res:Response) =>{
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const {basePrice, pricePerKm } = validationResult.data;
+  const {flag_price, basePrice, pricePerKm } = validationResult.data;
 
-  if(!basePrice || !pricePerKm){
+  if(!flag_price || !basePrice || !pricePerKm){
     res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
     return;
+  }
+
+  try {
+    // Assuming you only keep one settings document
+    const updatedSetting = await SettingSchemaModel.findOneAndUpdate(
+      {}, // match condition — empty if only one doc
+      {
+        flag_price,
+        basePrice,
+        pricePerKm,
+      },
+      { new: true, upsert: true } // upsert: create if not exists
+    );
+
+    res.status(200).json({
+      message: "Settings updated successfully",
+      setting: updatedSetting,
+    });
+  } catch (error: any) {
+    console.error("Error updating settings:", error);
+    res.status(500).json({
+      message: "Internal Server Error",
+      error: error.message,
+    });
   }
 }
 
