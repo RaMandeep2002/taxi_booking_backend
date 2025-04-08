@@ -23,6 +23,7 @@ export interface IBooking extends Document {
   fareAmount: number;
   distance: number;
   totalFare: number;
+  wating_time : number;
   driver: Types.ObjectId;
   paymentStatus: "pending" | "paid";
   paymentMethod: "cash" | "card" | "online";
@@ -97,6 +98,10 @@ const BookingSchema: Schema = new Schema({
   totalFare: {
     type: Number,
     default: 0,
+  },
+  wating_time:{
+    type:Number,
+    default : 0,
   },
   driver: {
     type: Schema.Types.ObjectId,

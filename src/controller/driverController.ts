@@ -196,11 +196,16 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
       return;
     }
     const shiftStartTime = startTime || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+    console.log("shiftStartTime --------------> ", shiftStartTime)
     const shiftStartDate = startDate || new Date().toLocaleDateString();
+    console.log("shiftStartDate --------------> ", shiftStartDate)
     
     const startTimeFormatted = `${shiftStartTime}, ${shiftStartDate}`;
+    console.log("startTimeFormatted --------------> ", startTimeFormatted)
     const startMonth = new Date(shiftStartDate).toLocaleString('default', { month: 'long' });
+    console.log("startMonth --------------> ", startMonth)
     const startWeek = Math.ceil(new Date(shiftStartDate).getDate() / 7);
+    console.log("startWeek --------------> ", startWeek)
     
     const newShift = {
       driverId,
@@ -568,7 +573,8 @@ export const start_Ride = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
 
   const driverId = getDriverId(token);
-  const { vehicleUsed } = req.body;
+
+
   const { 
     customerName,
     phoneNumber,
@@ -666,10 +672,10 @@ export const end_Ride = async (req: Request, res: Response) => {
 
   const driverId = getDriverId(token);
   // waiting time 
-  const { bookingId,distance, totalFare, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
+  const { bookingId,distance,wating_time , dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
 
-  if (!driverId || !bookingId || !dropLatitude || !dropLongitude || !dropAddress) {
-    res.status(400).json({ message: "driverId, bookingId, and drop-off location are required" });
+  if (!driverId || !bookingId || !distance || !wating_time ||  !dropLatitude || !dropLongitude || !dropAddress) {
+    res.status(400).json({ message: "driverId, bookingId and drop-off location are required" });
     return;
   }
 
@@ -680,7 +686,7 @@ export const end_Ride = async (req: Request, res: Response) => {
       return;
     }
 
-    const BASE_FARE_PRICE = settings.basePrice;
+    const FLAG_PRICE = settings.flag_price;
 
     const driver = await Driver.findOne({ driverId });
     if (!driver) {
@@ -712,6 +718,8 @@ export const end_Ride = async (req: Request, res: Response) => {
 
     // const time = new Date();
 
+    const totalFare = await CalculateTaxiTotalFarePrice(FLAG_PRICE, distance, wating_time);
+
     activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
 
@@ -720,6 +728,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     driver.status = "available";
     booking.distance += distance;
     booking.totalFare += totalFare;
+    booking.wating_time += wating_time;
     booking.dropdownDate =  new Date().toLocaleDateString();
     booking.dropdownTime = new Date().toLocaleTimeString();
     booking.dropOff = {
@@ -741,3 +750,18 @@ export const end_Ride = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error ending the ride", error });
   }
 }
+
+
+function CalculateTaxiTotalFarePrice(flag_price:number, distance:number, waitingTimeSec:number):number{
+  const DISTANCE_RATE_PER_KM = 2.65;
+  const WAITING_TIME_RATE_PER_SEC = 0.10 / 5.29;
+
+  const distanceFare = distance * DISTANCE_RATE_PER_KM;
+
+  const waitingTimeFare = waitingTimeSec * WAITING_TIME_RATE_PER_SEC;
+
+  const totalFare =  flag_price + distanceFare + waitingTimeFare;
+
+  return parseFloat(totalFare.toFixed(2));
+}
+

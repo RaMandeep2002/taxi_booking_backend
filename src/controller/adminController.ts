@@ -826,7 +826,7 @@ export const getsetting = async(req:Request, res:Response) =>{
 
     try{
       const settings = await SettingSchemaModel.find();
-
+      console.log("settings ------> ", settings)
       if(!settings){
         res.status(404).json({message:"Settings not found!!"});
         return;
