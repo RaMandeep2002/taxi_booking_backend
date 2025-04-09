@@ -20,6 +20,7 @@ import {
   addMultipleDrivers,
   setting,
   getsetting,
+  registerVehiclewithparams,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -48,7 +49,13 @@ router.delete(
 );
 
 router.post(
-  "/register-vehicle/:driverId",
+  "/register-vehicle-with_params/:driverId",
+  authenticate,
+  authorize(["admin"]),
+  registerVehiclewithparams,
+);
+router.post(
+  "/register-vehicle",
   authenticate,
   authorize(["admin"]),
   registerVehicle,

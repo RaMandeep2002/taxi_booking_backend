@@ -2,11 +2,12 @@ import http from "k6/http";
 import {check, sleep} from "k6";
 
 export const options = {
-    stages:[
-        { duration: '5s', target: 5 }, // Ramp up to 5 users
-        { duration: '10s', target: 5 }, // Stay at 5 users
-        { duration: '5s', target: 0 },  // Ramp down
-    ]
+    stages: [
+        { duration: '5s', target: 2 }, // Ramp up to 2 users (was 5)
+        { duration: '10s', target: 2 }, // Hold at 2 users
+        { duration: '5s', target: 0 }, // Ramp down to 0
+      ],
+      rps: 5, // Limit to 5 requests per second
 }
 
 interface DriverRegisterPayload{
@@ -20,8 +21,8 @@ interface DriverRegisterPayload{
 function getJwtToken () : string | null {
     const loginurl :string = "http://localhost:5000/api/auth/login";
     const payload =JSON.stringify({
-        email:"admin1@gmail.com",
-        password:"deepadmin1ramandeep"
+        email:"raman12@gmail.com",
+        password:"raman123"
     });
 
     const params = {
@@ -48,11 +49,14 @@ export default function(){
 
     const url:string = "http://localhost:5000/admin/add-driver";
 
+    const firstDigit = [6, 7, 8, 9][Math.floor(Math.random() * 4)];
+    const remainingDigits = Math.floor(Math.random() * 1000000000).toString().padStart(9, "0");
+
     const payload:DriverRegisterPayload = {
         drivername:`TestUser${Math.floor(Math.random() * 1000)}`,
-        email: `test${Math.floor(Math.random() * 10000)}@example.com`,
+        email: `test${Date.now()}${Math.floor(Math.random() * 100)}@gmail.com`,
         driversLicenseNumber:`PB${Math.floor(Math.random() * 10000)}`,
-        phoneNumber: `+91${Math.floor(Math.random() * 9000000000) + 1000000000}`,
+        phoneNumber : `+91${firstDigit}${remainingDigits}`,
         password: `Test${Math.floor(Math.random() * 10000)}@1234`,
     } 
 

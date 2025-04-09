@@ -3,7 +3,7 @@ import mongoose, { Document, Schema, Types } from "mongoose";
 // Interface for Vehicle
 export interface IVehicle extends Document {
   registrationNumber: string;
-  make: string;
+  company: string;
   vehicleModel: string;
   year: number;
   status: "active" | "free";
@@ -19,7 +19,7 @@ const VehicleSchema: Schema = new Schema(
       required: true,
       unique: true,
     },
-    make: {
+    company: {
       type: String,
       required: true,
     },

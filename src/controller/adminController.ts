@@ -323,21 +323,21 @@ export const deleteDriver = async (req: Request, res: Response) => {
 };
 
 
-export const registerVehicle = async (req: Request, res: Response) => {
+export const registerVehiclewithparams = async (req: Request, res: Response) => {
   const { driverId } = req.params;
-  console.log(req.body);
-  const validationResult = registerVehicleSchema.safeParse(req.body);
-  console.log("validation result ==> ", validationResult);
-  if (!validationResult.success) {
-    res.status(400).json({ errors: validationResult.error.errors });
-    return;
-  }
+  // console.log(req.body);
+  // const validationResult = registerVehicleSchema.safeParse(req.body);
+  // console.log("validation result ==> ", validationResult);
+  // if (!validationResult.success) {
+  //   res.status(400).json({ errors: validationResult.error.errors });
+  //   return;
+  // }
 
-  const { make, vehicleModel, year, status } = validationResult.data;
+  const { company, vehicleModel, year, status } = req.body;
 
   try {
-    if (!make || !vehicleModel || !year) {
-      res.status(400).json({ message: "Make, model, and year are required!" });
+    if (!company || !vehicleModel || !year) {
+      res.status(400).json({ message: "company, model, and year are required!" });
       return;
     }
 
@@ -352,7 +352,64 @@ export const registerVehicle = async (req: Request, res: Response) => {
 
     const newVehicle = new Vehicle({
       registrationNumber,
-      make,
+      company,
+      vehicleModel,
+      year,
+      status: status || "active",
+    });
+
+    const savedVehicle = await newVehicle.save();
+
+    // Ensure _id is of type ObjectId before pushing
+    driver.vehicle.push(savedVehicle._id as mongoose.Types.ObjectId);
+    await driver.save();
+
+    // Populate the driver's vehicle data
+    const updatedDriver = await Driver.findOne({driverId}).populate("vehicle");
+    console.log("updatedDriver ===> ", updatedDriver)
+    // Return the updated driver data with the vehicle details
+    res.status(201).json({
+      message: "Vehicle registered successfully!",
+      driver: updatedDriver,
+    });
+  } catch (error: any) {
+    console.error("Error registering vehicle:", error);
+    res
+      .status(500)
+      .json({ message: "Something went wrong!", error: error.message });
+  }
+};
+
+
+export const registerVehicle = async (req: Request, res: Response) => {
+  console.log(req.body);
+  const validationResult = registerVehicleSchema.safeParse(req.body);
+  console.log("validation result ==> ", validationResult);
+  if (!validationResult.success) {
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
+  }
+
+  const { driverId, company, vehicleModel, year, status } = validationResult.data;
+
+  try {
+    if (!driverId || !company || !vehicleModel || !year) {
+      res.status(400).json({ message: "company, model, and year are required!" });
+      return;
+    }
+
+    const { registrationNumber } = generateRandomRegistrationNumber(); // Fix function name
+    console.log("Driver Id ===> ",driverId)
+    const driver = await Driver.findOne({driverId}).populate("vehicle");
+    console.log(driver);
+    if (!driver) {
+      res.status(404).json({ message: "Driver not found!" });
+      return;
+    }
+
+    const newVehicle = new Vehicle({
+      registrationNumber,
+      company,
       vehicleModel,
       year,
       status: status || "active",
@@ -469,7 +526,7 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
     return;
   }
 
-  const { make, vehicleModel, year, status } = validationResult.data;
+  const { company, vehicleModel, year, status } = validationResult.data;
   try {
     const vehicle = await Vehicle.findOne({ registrationNumber });
     if (!vehicle) {
@@ -485,7 +542,7 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
 
     const updateDriver = await Driver.findOneAndUpdate(
       { driverId, registrationNumber },
-      { $set: { make, vehicleModel, year, status } },
+      { $set: { company, vehicleModel, year, status } },
       { new: true },
     );
 
@@ -603,7 +660,7 @@ export const gettingReport = async (req: Request, res: Response) => {
           // Vehicle details
           "driver.vehicles._id": 1,
           "driver.vehicles.registrationNumber": 1,
-          "driver.vehicles.make": 1,
+          "driver.vehicles.company": 1,
           "driver.vehicles.vehicleModel": 1,
           "driver.vehicles.year": 1,
         },
@@ -636,7 +693,7 @@ export const gettingReport = async (req: Request, res: Response) => {
         FINISH_TIME: booking.dropdownTime,
         CUSTOMER_PHONE: booking.phoneNumber,
         ADDRESS: booking.pickup?.address || "N/A",
-        VEHICLE: booking.driver.vehicles?.make || "N/A",
+        VEHICLE: booking.driver.vehicles?.company || "N/A",
       });
     });
 
@@ -724,7 +781,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           //vehicle details
           "driver.vehicles._id": 1,
           "driver.vehicles.registrationNumber": 1,
-          "driver.vehicles.make": 1,
+          "driver.vehicles.company": 1,
           "driver.vehicles.vehicleModel": 1,
           "driver.vehicles.year": 1,
         },
@@ -754,9 +811,9 @@ export const setting = async(req:Request, res:Response) =>{
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const {flag_price,basePrice, pricePerKm } = validationResult.data;
+  const {flag_price,distance_price_per_meter, waiting_time_price_per_seconds } = validationResult.data;
 
-  if(!flag_price || !basePrice || !pricePerKm){
+  if(!flag_price || !distance_price_per_meter || !waiting_time_price_per_seconds){
     res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
     return;
   }
@@ -766,12 +823,12 @@ export const setting = async(req:Request, res:Response) =>{
 
     if(settings){
       settings.flag_price = flag_price;
-      settings.basePrice = basePrice;
-      settings.pricePerKm = pricePerKm;
+      settings.distance_price_per_meter = distance_price_per_meter;
+      settings.waiting_time_price_per_seconds = waiting_time_price_per_seconds;
       await settings.save();
     }
     else{
-      settings = new SettingSchemaModel({flag_price,basePrice, pricePerKm });
+      settings = new SettingSchemaModel({flag_price,distance_price_per_meter, waiting_time_price_per_seconds });
       await settings.save(); 
     }
 
@@ -790,9 +847,9 @@ export const updateSettings = async(req:Request, res:Response) =>{
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const {flag_price, basePrice, pricePerKm } = validationResult.data;
+  const {flag_price, distance_price_per_meter, waiting_time_price_per_seconds } = validationResult.data;
 
-  if(!flag_price || !basePrice || !pricePerKm){
+  if(!flag_price || !distance_price_per_meter || !waiting_time_price_per_seconds){
     res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
     return;
   }
@@ -803,8 +860,8 @@ export const updateSettings = async(req:Request, res:Response) =>{
       {}, // match condition — empty if only one doc
       {
         flag_price,
-        basePrice,
-        pricePerKm,
+        distance_price_per_meter,
+        waiting_time_price_per_seconds,
       },
       { new: true, upsert: true } // upsert: create if not exists
     );

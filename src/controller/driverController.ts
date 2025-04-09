@@ -93,7 +93,7 @@ export const getTheDriverVechicle = async (req: Request, res: Response) => {
       {
         $project: {
           _id: 1,
-          make: 1,
+          company: 1,
           vehicleModel: 1,
           year: 1,
           status: 1,
@@ -687,6 +687,8 @@ export const end_Ride = async (req: Request, res: Response) => {
     }
 
     const FLAG_PRICE = settings.flag_price;
+    const DISTANCE_PRICE_PER_METER = settings.distance_price_per_meter;
+    const WAITING_TIME_RATE_PER_MIN = settings.waiting_time_price_per_seconds;
 
     const driver = await Driver.findOne({ driverId });
     if (!driver) {
@@ -718,7 +720,7 @@ export const end_Ride = async (req: Request, res: Response) => {
 
     // const time = new Date();
 
-    const totalFare = await CalculateTaxiTotalFarePrice(FLAG_PRICE, distance, wating_time);
+    const totalFare = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_METER,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
 
     activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
@@ -731,7 +733,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     booking.wating_time += wating_time;
     booking.dropdownDate =  new Date().toLocaleDateString();
     booking.dropdownTime = new Date().toLocaleTimeString();
-    booking.dropOff = {
+    booking.dropOff = { 
       latitude: dropLatitude,
       longitude: dropLongitude,
       address: dropAddress
@@ -752,15 +754,19 @@ export const end_Ride = async (req: Request, res: Response) => {
 }
 
 
-function CalculateTaxiTotalFarePrice(flag_price:number, distance:number, waitingTimeSec:number):number{
-  const DISTANCE_RATE_PER_KM = 2.65;
-  const WAITING_TIME_RATE_PER_SEC = 0.10 / 5.29;
+function CalculateTaxiTotalFarePrice(flag_price:number,distance_price_per_meter:number,waiting_time_price_per_seconds:number, distance:number, waitingTimeMin:number):number{
+  const distanceFare = distance * distance_price_per_meter;
 
-  const distanceFare = distance * DISTANCE_RATE_PER_KM;
+  console.log("distanceFare ---------> ", distanceFare)
 
-  const waitingTimeFare = waitingTimeSec * WAITING_TIME_RATE_PER_SEC;
+  const waitingTimeFare = waitingTimeMin * waiting_time_price_per_seconds;
+
+  console.log("waitingTimeFare ---------> ", waitingTimeFare)
 
   const totalFare =  flag_price + distanceFare + waitingTimeFare;
+
+  console.log("totalFare ---------> ", totalFare)
+
 
   return parseFloat(totalFare.toFixed(2));
 }

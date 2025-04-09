@@ -34,7 +34,7 @@ router.post(
   stopShift,
 );
 router.post(
-  "/stop-shift-with-time",
+  "/start-shift-with-time",
   authenticate,
   authorize(["driver"]),
   startShiftwithtime,
@@ -43,7 +43,7 @@ router.post(
   "/start-ride",
   authenticate,
   authorize(["driver"]),
-  start_Ride,
+  start_Ride, 
 );
 
 router.post(
