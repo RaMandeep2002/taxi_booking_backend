@@ -5,7 +5,7 @@ export interface IDriver extends Document {
   driverId: string;
   drivername: string;
   email: string;
-  phoneNumber: number;
+  phoneNumber: string;
   driversLicenseNumber?: string;
   vehicle: Types.ObjectId[];
   isOnline: boolean;
@@ -35,7 +35,7 @@ const DriverSchema: Schema = new Schema(
       unique: true,
     },
     phoneNumber: {
-      type: Number,
+      type: String,
       required: true,
     },
     driversLicenseNumber: {

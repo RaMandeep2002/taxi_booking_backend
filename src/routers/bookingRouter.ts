@@ -10,4 +10,5 @@ router.post("/ridebooking", bookingRide);
 router.get("/bookingHistory", bookingHistory);
 router.get("/users", getTheUserInformation);
 
+
 export default router;

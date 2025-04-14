@@ -15,7 +15,7 @@ export const authenticate = (
   }
 
   try {
-    const secret = process.env.JWT_SECRET || "cypres";
+    const secret = process.env.JWT_SECRET || "srtaxi";
     const decoded = jwt.verify(token, secret) as UserPayload;
     req.user = decoded;
     if (!req.user.id) {

@@ -4,6 +4,7 @@ import {
   cofirmRide,
   deteleallShiftsHistory,
   end_Ride,
+  getAllVehicles,
   // endRide,
   getTheDriverVechicle,
   start_Ride,
@@ -11,6 +12,7 @@ import {
   startShift,
   startShiftwithtime,
   stopShift,
+  stopShiftwithtime,
   updateDriverStatus,
 } from "../controller/driverController";
 import { authenticate } from "../middleware/authMiddleware";
@@ -20,18 +22,25 @@ import { getAllBookingRider } from "../controller/BookingRide";
 const router = express.Router();
 
 // router.post("/driver_login", driverLogin);
-router.get("/getDriverVechile", authenticate, authorize(["driver"]), getTheDriverVechicle as express.RequestHandler);
+router.get("/getDriverVechile", getTheDriverVechicle);
+router.get("/getallVechile", authenticate, authorize(["driver"]), getAllVehicles);
 router.post(
   "/start-shift",
   authenticate,
   authorize(["driver"]),
   startShift,
 );
+// router.post(
+//   "/stop-shift",
+//   authenticate,
+//   authorize(["driver"]),
+//   stopShift,
+// );
 router.post(
   "/stop-shift",
   authenticate,
   authorize(["driver"]),
-  stopShift,
+  stopShiftwithtime,
 );
 router.post(
   "/start-shift-with-time",

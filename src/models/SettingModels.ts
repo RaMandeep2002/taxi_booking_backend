@@ -1,15 +1,20 @@
 import mongoose, {Document, Schema} from "mongoose";
 
 export interface ISetting extends Document{
-    flag_price: number,
-    distance_price_per_meter: number,
-    waiting_time_price_per_seconds : number,
+    base_price: number,
+    km_price: number,
+    waiting_time_price_per_minutes : number,
 }
 
 const SettingSchema: Schema = new Schema({
-    flag_price: {type: Number },
-    distance_price_per_meter: {type:Number},
-    waiting_time_price_per_seconds : {type:Number}
+    base_price: {type: Number },
+    km_price: {type:Number},
+    waiting_time_price_per_minutes : {type:Number}
 }) 
 
 export const SettingSchemaModel = mongoose.model<ISetting>("Settings", SettingSchema);
+
+
+// base_price : z.number(),
+// km_price: z.number(),
+// waiting_time_price_per_minutes : z.number(),

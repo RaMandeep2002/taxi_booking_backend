@@ -1,12 +1,5 @@
-import mongoose, { Document, Schema } from "mongoose";
-import { string } from "zod";
+import mongoose, { Document, Schema, Types } from "mongoose";
 
-// Interface for Shift
-
-// startDate,
-// startTimeFormatted,
-// startMonth,
-// startWeek,
 export interface IShift extends Document {
   driverId: string;
   vehicleUsed: mongoose.Types.ObjectId;
@@ -25,6 +18,7 @@ export interface IShift extends Document {
   totalTrips: number;
   totalDistance: number;
   distance: number;
+  bookings: Types.ObjectId[];
   isActive: boolean;
 }
 
@@ -91,6 +85,12 @@ const ShiftSchema: Schema = new Schema(
       type: Number,
       default: 0,
     },
+    bookings: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Booking",
+      },
+    ],
     isActive: {
       type: Boolean,
       default: true,

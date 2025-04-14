@@ -9,6 +9,7 @@ export interface IVehicle extends Document {
   status: "active" | "free";
   currentDriver?: Types.ObjectId;
   isActive: boolean;
+  isAssigned:boolean;
 }
 
 // Vehicle Schema
@@ -44,6 +45,10 @@ const VehicleSchema: Schema = new Schema(
       type: Boolean,
       default: true,
     },
+    isAssigned:{
+      type:Boolean,
+      default: false,
+    }
   },
   { timestamps: true }
 );

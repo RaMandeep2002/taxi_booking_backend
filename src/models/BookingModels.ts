@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
+import { string } from "zod";
 
 export interface Location {
   latitude: number;
@@ -23,6 +24,8 @@ export interface IBooking extends Document {
   fareAmount: number;
   distance: number;
   totalFare: number;
+  discount_price : number;
+  after_discount_price: number;
   wating_time : number;
   driver: Types.ObjectId;
   paymentStatus: "pending" | "paid";
@@ -38,7 +41,6 @@ const BookingSchema: Schema = new Schema({
   },
   customerName: {
     type: String,
-    required: true,
   },
   phoneNumber: {
     type: Number,
@@ -98,6 +100,14 @@ const BookingSchema: Schema = new Schema({
   totalFare: {
     type: Number,
     default: 0,
+  },
+  discount_price : {
+    type:Number,
+    default: 0
+  },
+  after_discount_price: {
+    type:Number,
+    default:0
   },
   wating_time:{
     type:Number,

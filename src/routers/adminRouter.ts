@@ -21,6 +21,9 @@ import {
   setting,
   getsetting,
   registerVehiclewithparams,
+  registerSharedVehicle,
+  getAllShifts,
+  getAllShifts12,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -59,6 +62,12 @@ router.post(
   authenticate,
   authorize(["admin"]),
   registerVehicle,
+);
+router.post(
+  "/register-vehicle-shared",
+  authenticate,
+  authorize(["admin"]),
+  registerSharedVehicle,
 );
 router.get(
   "/getDriverWithVehicle/:driverId",
@@ -105,6 +114,8 @@ router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
 
 
 router.post("/settings", authenticate, authorize(["admin"]), setting);
-router.get("/settings", authenticate, authorize(["admin"]), getsetting);
+router.get("/settings", getsetting);
+
+router.get("/shiftsHistory",getAllShifts12)
 
 export default router;

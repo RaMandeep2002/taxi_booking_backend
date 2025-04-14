@@ -5,6 +5,7 @@ import BookingModels, { IBooking } from "../models/BookingModels";
 import User from "../models/User";
 import { bookingSchema } from "../schema/bookingSchema";
 import redisClinet from "../config/redis";
+import { Shift } from "../models/ShiftModel";
 
 const generateBookingId = () => {
   const bookingId = crypto.randomBytes(4).toString("hex");
@@ -166,6 +167,7 @@ export const bookingHistory = async (req: Request, res: Response) => {
             customerName: 1,
             pickupDate: 1,
             pickup: 1,
+            pickuptime:1,
             dropOff: 1,
             totalFare:1,
             paymentStatus: 1,

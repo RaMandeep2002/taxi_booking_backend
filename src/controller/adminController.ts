@@ -11,10 +11,10 @@ import { Roles } from "../types/roles";
 import redisClinet from "../config/redis";
 import fs from "fs";
 import { format } from "fast-csv";
-import { DriverAddSchema, registerVehicleSchema } from "../schema/DriverSchema";
-import { error } from "console";
+import { DriverAddSchema, registerSharedVehicleSchema, registerVehicleSchema } from "../schema/DriverSchema";
 import { SettingSchemaModel } from "../models/SettingModels";
 import { SettingSchema } from "../schema/SettingSchema";
+import { Shift } from "../models/ShiftModel";
 
 const generatoRandomCredentials = () => {
   const id = crypto.randomBytes(4).toString("hex");
@@ -85,7 +85,7 @@ export const getAdminInfo = async (
 };
 
 export const adddriver = async (req: Request, res: Response) => {
-  console.log("Enter ===> ")
+  console.log("Enter ===> ", req.body)
   const validationResult = DriverAddSchema.safeParse(req.body);
   console.log("validationResult ==> ", validationResult);
   if (!validationResult.success) {
@@ -105,7 +105,7 @@ export const adddriver = async (req: Request, res: Response) => {
     if (existingDriver) {
       res
         .status(400)
-        .json({ message: "Driver eith this email already exists!" });
+        .json({ message: "Driver With this email already exists!" });
       return;
     }
 
@@ -264,7 +264,24 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
 
 export const getDriverDetails = async (req: Request, res: Response) => {
   try {
+    const cachedkey = "all_drivers";
+    const cachedData = await redisClinet.get(cachedkey);
+
+    if (cachedData) {
+     res.status(200).json({
+        success: true,
+        message: "Drivers fetched from cache",
+        data: JSON.parse(cachedData),
+      });
+      return;
+    }
+
     const drivers = await Driver.find();
+
+     await redisClinet.set(cachedkey, JSON.stringify(drivers), {
+      EX: 3600,
+    });
+
 
     res.status(200).json({
       success: true,
@@ -436,6 +453,46 @@ export const registerVehicle = async (req: Request, res: Response) => {
       .json({ message: "Something went wrong!", error: error.message });
   }
 };
+
+export const registerSharedVehicle = async (req: Request, res: Response) => {
+  console.log(req.body);
+  
+  const validationResult = registerSharedVehicleSchema.safeParse(req.body);
+  console.log("validation result ==> ", validationResult);
+  if (!validationResult.success) {
+     res.status(400).json({ errors: validationResult.error.errors });
+     return;
+  }
+
+  const { company, vehicleModel, year, status } = validationResult.data;
+
+  try {
+    const { registrationNumber } = generateRandomRegistrationNumber();
+
+    const newVehicle = new Vehicle({
+      registrationNumber,
+      company,
+      vehicleModel,
+      year,
+      status: status || "available", // Mark it as available for all
+      isShared: true, // optional flag to indicate shared vehicle
+    });
+
+    const savedVehicle = await newVehicle.save();
+
+    res.status(201).json({
+      message: "Shared vehicle registered successfully!",
+      vehicle: savedVehicle,
+    });
+  } catch (error: any) {
+    console.error("Error registering shared vehicle:", error);
+    res.status(500).json({
+      message: "Something went wrong while registering shared vehicle!",
+      error: error.message,
+    });
+  }
+};
+
 export const getDriverWithVehicleexculudeDriver = async (req: Request, res: Response) => {
   try {
     const drivers = await Driver.find().populate("vehicle");
@@ -492,23 +549,28 @@ export const getDriverWithVehicleandshifts = async (req: Request, res: Response)
 
   try {
     // Validate the driverId
-    if (!mongoose.Types.ObjectId.isValid(driverId)) {
+    if (!driverId) {
       res.status(400).json({ message: "Invalid driver ID!" });
       return;
     }
 
+    const driver = await Driver.findOne({driverId});
+    if(!driver){
+      res.status(404).json({message:"Driver not found!!"});
+      return;
+    }
     // Find the driver and populate the vehicle details
-    const driver = await Driver.findById(driverId).populate("vehicle").populate("shifts");
+    const driverVechicleandShift = await Driver.findOne({driverId}).populate("vehicle").populate("shifts");
 
-    if (!driver) {
-      res.status(404).json({ message: "Driver not found!" });
+    if (!driverVechicleandShift) {
+      res.status(404).json({ message: "Driver shift not found!" });
       return;
     }
 
     // Return the driver information with vehicle details
     res.status(200).json({
       message: "Driver information retrieved successfully!",
-      driver,
+      driverVechicleandShift,
     });
   } catch (error: any) {
     console.error("Error retrieving driver information:", error);
@@ -804,41 +866,47 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
 }
 
 
-export const setting = async(req:Request, res:Response) =>{
+export const setting = async (req: Request, res: Response) => {
+  console.log("Received body:", req.body);
+
   const validationResult = SettingSchema.safeParse(req.body);
 
   if (!validationResult.success) {
-    res.status(400).json({ errors: validationResult.error.errors });
-    return;
-  }
-  const {flag_price,distance_price_per_meter, waiting_time_price_per_seconds } = validationResult.data;
-
-  if(!flag_price || !distance_price_per_meter || !waiting_time_price_per_seconds){
-    res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
-    return;
+     res.status(400).json({ errors: validationResult.error.errors });
+     return;
   }
 
-  try{
+  const { base_price, km_price, waiting_time_price_per_minutes } = validationResult.data;
+
+  try {
     let settings = await SettingSchemaModel.findOne();
 
-    if(settings){
-      settings.flag_price = flag_price;
-      settings.distance_price_per_meter = distance_price_per_meter;
-      settings.waiting_time_price_per_seconds = waiting_time_price_per_seconds;
+    if (settings) {
+      settings.base_price = base_price;
+      settings.km_price = km_price;
+      settings.waiting_time_price_per_minutes = waiting_time_price_per_minutes;
+      await settings.save();
+    } else {
+      settings = new SettingSchemaModel({
+        base_price,
+        km_price,
+        waiting_time_price_per_minutes,
+      });
       await settings.save();
     }
-    else{
-      settings = new SettingSchemaModel({flag_price,distance_price_per_meter, waiting_time_price_per_seconds });
-      await settings.save(); 
-    }
 
-
-    res.status(200).json({message:"Setting Update Successfully", settings});
+    res.status(200).json({
+      message: "Settings updated successfully",
+      settings,
+    });
+  } catch (error: any) {
+    console.error("Error updating settings:", error);
+    res.status(500).json({
+      message: "Something went wrong!",
+      error: error.message,
+    });
   }
-  catch(error:any){
-    res.status(500).json({message:"Something worng!!", error});
-  }
-}
+};
 
 export const updateSettings = async(req:Request, res:Response) =>{
   const validationResult = SettingSchema.safeParse(req.body);
@@ -847,9 +915,9 @@ export const updateSettings = async(req:Request, res:Response) =>{
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const {flag_price, distance_price_per_meter, waiting_time_price_per_seconds } = validationResult.data;
+  const {base_price, km_price, waiting_time_price_per_minutes } = validationResult.data;
 
-  if(!flag_price || !distance_price_per_meter || !waiting_time_price_per_seconds){
+  if(!base_price || !km_price || !waiting_time_price_per_minutes){
     res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
     return;
   }
@@ -859,9 +927,9 @@ export const updateSettings = async(req:Request, res:Response) =>{
     const updatedSetting = await SettingSchemaModel.findOneAndUpdate(
       {}, // match condition — empty if only one doc
       {
-        flag_price,
-        distance_price_per_meter,
-        waiting_time_price_per_seconds,
+        base_price,
+        km_price,
+        waiting_time_price_per_minutes,
       },
       { new: true, upsert: true } // upsert: create if not exists
     );
@@ -895,3 +963,69 @@ export const getsetting = async(req:Request, res:Response) =>{
     res.status(500).json({message:"Something worng!!", error});
   }
 }
+
+
+export const getAllShifts = async (req: Request, res: Response) => {
+  try {
+    const shifts = await Shift.find()
+      .populate({
+        path: 'drivers',
+        select: 'driverId drivername email phoneNumber status', // Select specific driver fields
+        populate: {
+          path: 'vehicle', // Populate vehicle details for each driver
+          select: 'registrationNumber company vehicleModel year status' // Select specific vehicle fields
+        }
+      })
+      .sort({ createdAt: -1 }); // latest first
+
+    res.status(200).json({json:"Successfully Fetch shifts ",shifts});
+  } catch (error) {
+    console.error("Error fetching shifts:", error);
+    res.status(500).json({ message: "Something went wrong!" });
+  }
+};
+
+export const getAllShifts12 = async (req: Request, res: Response) => {
+  try {
+    const shifts = await Shift.aggregate([
+      {
+        $lookup: {
+          from: "drivers",
+          localField: "driverId",
+          foreignField: "driverId",
+          as: "driver"
+        }
+      },
+      {
+        $unwind: {
+          path: "$driver",
+          preserveNullAndEmptyArrays: true
+        }
+      },
+      {
+        $project: {
+          startTime: 1,
+          startDate: 1,
+          endTime: 1,
+          endDate: 1,
+          totalEarnings: 1,
+          totalDuration: 1,
+          totalDistance: 1,
+          isActive: 1,
+          "driver.drivername": 1,
+          "driver.email": 1,
+          "driver.status": 1,
+          "driver.phoneNumber": 1
+        }
+      }
+    ]);
+
+    res.status(200).json({
+      message: "Successfully fetched all shifts with driver info",
+      shifts
+    });
+  } catch (error) {
+    console.error("Error fetching shifts:", error);
+    res.status(500).json({ message: "Something went wrong!" });
+  }
+};

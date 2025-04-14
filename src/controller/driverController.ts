@@ -2,9 +2,11 @@ import { Request, Response } from "express";
 import { Driver } from "../models/DriverModel";
 import { Shift } from "../models/ShiftModel"
 import BookingModels from "../models/BookingModels";
-import { Types } from "mongoose";
+import mongoose, { Types } from "mongoose";
 import jwt from "jsonwebtoken";
 import { SettingSchemaModel } from "../models/SettingModels";
+import { Vehicle } from "../models/VehicleModel";
+import { parse } from "date-fns";
 // import { generateBookingId } from '../utils/generateId'; // You'll need to create this utility function
 
 
@@ -12,7 +14,7 @@ export const getDriverId = (token?: string): string | null => {
   if (!token) return null;
 
   try {
-      const secret = process.env.JWT_SECRET || "cypress"; // Ensure this is set in your .env file
+      const secret = process.env.JWT_SECRET || ""; // Ensure this is set in your .env file
       const decoded = jwt.verify(token, secret) as { id?: string };
       console.log(decoded);
       return decoded.id || null;
@@ -50,70 +52,46 @@ export const updateDriverStatus = async (req: Request, res: Response) => {
 };
 
 export const getTheDriverVechicle = async (req: Request, res: Response) => {
-  const token: string | undefined = req.headers.authorization?.split(" ")[1];
-
-  const driverId = getDriverId(token);
-
+  
   try {
-    if (!driverId) {
-      res.status(400).json({ message: "Driver ID not valid" });
-      return;
-    }
+    const vehicles = await Vehicle.find().select(
+      "_id company vehicleModel year status registrationNumber isAssigned"
+    );
 
-    const driver = await Driver.findOne({ driverId });
 
-    if (!driver) {
-       res.status(404).json({ message: "Driver not found" });
-       return;
-    }
-
-    const driverVehicles = await Driver.aggregate([
-      {
-        $match: { driverId: driverId }
-      },
-      {
-        $lookup: {
-          from: "vehicles",
-          localField: "vehicle",
-          foreignField: "_id",
-          as: "vehicleDetails"
-        }
-      },
-      {
-        $unwind: {
-          path: "$vehicleDetails",
-          preserveNullAndEmptyArrays: true
-        }
-      },
-      {
-        $replaceRoot: {
-          newRoot: "$vehicleDetails"
-        }
-      },
-      {
-        $project: {
-          _id: 1,
-          company: 1,
-          vehicleModel: 1,
-          year: 1,
-          status: 1,
-          registrationNumber: 1
-        }
-      }
-    ]);
-
-    if (!driverVehicles || driverVehicles.length === 0) {
+    if (!vehicles || vehicles.length === 0) {
        res.status(404).json({ message: "No vehicles assigned to driver" });
        return;
     }
 
     res.status(200).json({
       message: "Vehicles retrieved successfully",
-      vehicles: driverVehicles
+      vehicles: vehicles
     });
 
   } catch (error) {
     console.error("Error retrieving driver vehicle:", error);
+    res.status(500).json({ message: "Internal server error", error });
+  }
+};
+
+export const getAllVehicles = async (req: Request, res: Response) => {
+  try {
+    const vehicles = await Vehicle.find().select(
+      "_id company vehicleModel year status registrationNumber isShared"
+    );
+
+    if (!vehicles || vehicles.length === 0) {
+       res.status(404).json({ message: "No vehicles found" });
+       return;
+    }
+
+    res.status(200).json({
+      message: "All vehicles retrieved successfully",
+      vehicles,
+    });
+  } catch (error) {
+    console.error("Error fetching all vehicles:", error);
     res.status(500).json({ message: "Internal server error", error });
   }
 };
@@ -185,12 +163,25 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
       res.status(404).json({ message: "Driver not found" });
       return;
     }
-    if (!driver.vehicle.includes(vehicleUsed)) {
-      res.status(400).json({ message: "Invalid vehicle" });
-      return;
-    }
-    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    // if (!driver.vehicle.includes(vehicleUsed)) {
+    //   res.status(400).json({ message: "Invalid vehicle" });
+    //   return;
+    // }
+    const vehicle = await Vehicle.findById(vehicleUsed);
 
+    if (!vehicle) {
+       res.status(404).json({ message: "Vehicle not found" });
+       return;
+    }
+
+    if (vehicle.isAssigned === true) {
+       res.status(400).json({ message: "This vehicle is currently assigned and cannot be used to start a shift." });
+       return;
+    }
+
+
+    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    console.log("active shift ====> ", activeShift);
     if (activeShift) {
       res.status(400).json({ message: "A shift is already active" });
       return;
@@ -209,6 +200,7 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
     
     const newShift = {
       driverId,
+      // activeShift._id,
       startTime: shiftStartTime,
       startDate: shiftStartDate,
       startTimeFormatted,
@@ -221,6 +213,10 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
       totalDistance: 0,
       isActive: true,
     };
+
+    vehicle.isAssigned = true;
+    
+    await vehicle.save()
 
     const shift = new Shift(newShift);
     await shift.save();
@@ -276,6 +272,12 @@ export const stopShift = async (req: Request, res: Response) => {
     activeShift.isActive = false;
     activeShift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
 
+    const vehicle = await Vehicle.findById(activeShift.vehicleUsed);
+    if (vehicle) {
+      vehicle.isAssigned = false;
+      await vehicle.save();
+    }
+
     await activeShift.save();
     await driver.save();
     res.status(200).json({ 
@@ -288,6 +290,78 @@ export const stopShift = async (req: Request, res: Response) => {
   }
 };
 
+
+
+export const stopShiftwithtime = async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  const driverId = getDriverId(token);
+
+  const { endTime, endDate } = req.body;
+
+  if (!endTime || !endDate) {
+     res.status(400).json({ message: "endTime and endDate are required" });
+     return;
+  }
+
+  try {
+    const driver = await Driver.findOne({ driverId }).populate("shifts");
+    if (!driver) {
+       res.status(404).json({ message: "Driver not found!" });
+       return;
+    }
+
+    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    if (!activeShift) {
+      res.status(400).json({ message: "No active shift found!!" });
+      return;
+    }
+
+    const start = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
+    const end = parse(`${endDate} ${endTime}`, "MM/dd/yyyy hh:mma", new Date());
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+       res.status(400).json({ message: "Invalid date/time format" });
+       return;
+    }
+
+    const durationMs = end.getTime() - start.getTime();
+
+    if (durationMs < 0) {
+       res.status(400).json({ message: "End time must be after start time" });
+       return;
+    }
+
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+    activeShift.endTime = endTime;
+    activeShift.endDate = endDate;
+    activeShift.endTimeFormatted = end.toISOString();
+    activeShift.endMonth = end.toLocaleString('default', { month: 'long' });
+    activeShift.isActive = false;
+    activeShift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
+
+    // Unassign vehicle
+    const vehicle = await Vehicle.findById(activeShift.vehicleUsed);
+    if (vehicle) {
+      vehicle.isAssigned = false;
+      await vehicle.save();
+    }
+
+    await activeShift.save();
+    await driver.save();
+
+    res.status(200).json({
+      message: "Shift ended successfully",
+      shift: activeShift,
+      shiftDuration: activeShift.totalDuration,
+    });
+    
+  } catch (error) {
+    res.status(500).json({ message: "Error stopping shift", error });
+  }
+};
 
 export const cofirmRide = async (req: Request, res: Response) => {
   const { driverId } = req.params;
@@ -571,45 +645,55 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
 
 export const start_Ride = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
-
   const driverId = getDriverId(token);
 
-
-  const { 
+  const {
     customerName,
     phoneNumber,
     pickup: { latitude, longitude, address }
   } = req.body;
 
   // Validate required fields
-  if (!driverId || !customerName || !phoneNumber || 
-      !latitude || !longitude || !address) {
-     res.status(400).json({ 
-      message: "All fields are required: customerName, phoneNumber, and pickup location" 
+  if (
+    !driverId ||
+    !customerName ||
+    !phoneNumber ||
+    latitude === undefined ||
+    longitude === undefined ||
+    !address
+  ) {
+   res.status(400).json({
+      message: "All fields are required: customerName, phoneNumber, and pickup location"
     });
     return;
   }
 
   try {
-    // Check if driver exists
+    // Find driver
     const driver = await Driver.findOne({ driverId });
     if (!driver) {
        res.status(404).json({ message: "Driver not found!" });
        return;
     }
 
-    // Check for active shift
+    console.log("driver ------> ",driver);
+
+    // Find shift
     const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
     if (!activeShift) {
-      res.status(400).json({ message: "No active shift found" });
-      return;
+       res.status(400).json({ message: "No active shift found" });
+       return;
     }
-    console.log(" latitude, longitude, address  ==> ", latitude,longitude,address)
-    // Generate booking ID (you'll need to implement this function)
+
+    console.log("activeShift ------> ", activeShift)
+
+    const now = new Date();
+
+    // Generate booking ID
     const bookingId = generateBookingId();
 
-    // Create new booking
-    const newBooking = new BookingModels({
+    // Create new booking instance
+    const bookingDoc ={
       bookingId,
       customerName,
       phoneNumber,
@@ -623,38 +707,56 @@ export const start_Ride = async (req: Request, res: Response) => {
         longitude: null,
         address: null
       },
-      pickuptime: new Date().toLocaleTimeString(),
-      pickupDate: new Date().toLocaleDateString(),
-      pickupTimeFormatted: new Date().toISOString(),
-      pickupMonth: new Date().toLocaleString('default', { month: 'long' }),
-      pickupWeek: Math.ceil(new Date().getDate() / 7),
+      pickuptime: now.toLocaleTimeString(),
+      pickupDate: now.toLocaleDateString(),
+      pickupTimeFormatted: now.toISOString(),
+      pickupMonth: now.toLocaleString('default', { month: 'long' }),
+      pickupWeek: Math.ceil(now.getDate() / 7),
       driver: driver._id,
       status: "ongoing",
       arrived: true,
       paymentStatus: "pending",
-      paymentMethod: "cash" // Default payment method
-    });
+      paymentMethod: "cash"
+    };
 
-    // Update driver status
-    driver.status = "busy";
+    const booking = new BookingModels(bookingDoc);
+    await booking.save();
+    console.log("booking ===>", booking)
+
+    const getbooking = await BookingModels.findOne({bookingId});
+    console.log("getbooking ===>", getbooking)
+    if(!getbooking){  
+      res.status(404).json({message:"no booking found!"});
+      return;
+    }
+    // Update shift
     activeShift.totalTrips += 1;
+    activeShift.bookings.push(booking._id as any); // 👈 Add booking to shift
 
-    // Save all changes
+    // Update driver
+    driver.status = "busy";
+
+    // Save updates
     await Promise.all([
-      newBooking.save(),
-      driver.save(),
-      activeShift.save()
+      activeShift.save(), // 👈 Will now store the booking inside shift
+      driver.save()
     ]);
 
-    res.status(200).json({ 
-      message: "Ride started successfully", 
-      booking: newBooking 
+    res.status(200).json({
+      message: "Ride started successfully",
+      booking: bookingDoc
     });
-  }
-  catch (error) {
-    res.status(500).json({ message: "Error starting the ride", error });
+    return;
+  } catch (error: any) {
+    console.error("Ride start error:", error);
+     res.status(500).json({
+      message: "Error starting the ride",
+      error: error.message || error
+    });
+    return;
   }
 };
+
 
 // Utility function to generate booking ID (create in separate file)
 function generateBookingId(): string {
@@ -672,7 +774,7 @@ export const end_Ride = async (req: Request, res: Response) => {
 
   const driverId = getDriverId(token);
   // waiting time 
-  const { bookingId,distance,wating_time , dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
+  const { bookingId,distance,wating_time, discount_price, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
 
   if (!driverId || !bookingId || !distance || !wating_time ||  !dropLatitude || !dropLongitude || !dropAddress) {
     res.status(400).json({ message: "driverId, bookingId and drop-off location are required" });
@@ -686,9 +788,9 @@ export const end_Ride = async (req: Request, res: Response) => {
       return;
     }
 
-    const FLAG_PRICE = settings.flag_price;
-    const DISTANCE_PRICE_PER_METER = settings.distance_price_per_meter;
-    const WAITING_TIME_RATE_PER_MIN = settings.waiting_time_price_per_seconds;
+    const FLAG_PRICE = settings.base_price;
+    const DISTANCE_PRICE_PER_KM = settings.km_price;
+    const WAITING_TIME_RATE_PER_MIN = settings.waiting_time_price_per_minutes;
 
     const driver = await Driver.findOne({ driverId });
     if (!driver) {
@@ -719,8 +821,9 @@ export const end_Ride = async (req: Request, res: Response) => {
     }
 
     // const time = new Date();
+    const totalFare = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
 
-    const totalFare = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_METER,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
+    const discounted_price_calaute = totalFare - discount_price;
 
     activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
@@ -730,6 +833,8 @@ export const end_Ride = async (req: Request, res: Response) => {
     driver.status = "available";
     booking.distance += distance;
     booking.totalFare += totalFare;
+    booking.discount_price += discount_price;
+    booking.after_discount_price += discounted_price_calaute;
     booking.wating_time += wating_time;
     booking.dropdownDate =  new Date().toLocaleDateString();
     booking.dropdownTime = new Date().toLocaleTimeString();
@@ -770,4 +875,3 @@ function CalculateTaxiTotalFarePrice(flag_price:number,distance_price_per_meter:
 
   return parseFloat(totalFare.toFixed(2));
 }
-
