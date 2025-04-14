@@ -44,7 +44,6 @@ const BookingSchema: Schema = new Schema({
   },
   phoneNumber: {
     type: Number,
-    required: true,
   },
   pickup: {
     latitude: { type: Number },

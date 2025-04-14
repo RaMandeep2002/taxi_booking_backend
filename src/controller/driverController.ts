@@ -656,8 +656,6 @@ export const start_Ride = async (req: Request, res: Response) => {
   // Validate required fields
   if (
     !driverId ||
-    !customerName ||
-    !phoneNumber ||
     latitude === undefined ||
     longitude === undefined ||
     !address
