@@ -89,7 +89,7 @@ export const adddriver = async (req: Request, res: Response) => {
   const validationResult = DriverAddSchema.safeParse(req.body);
   console.log("validationResult ==> ", validationResult);
   if (!validationResult.success) {
-    res.status(400).json({ errors: validationResult.error.errors });
+    res.status(400).json({ errors: validationResult.error.format() });
     return;
   }
 
