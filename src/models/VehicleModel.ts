@@ -6,6 +6,7 @@ export interface IVehicle extends Document {
   company: string;
   vehicleModel: string;
   year: number;
+  vehicle_plate_number : string;
   status: "active" | "free";
   currentDriver?: Types.ObjectId;
   isActive: boolean;
@@ -31,6 +32,10 @@ const VehicleSchema: Schema = new Schema(
     year: {
       type: Number,
       required: true,
+    },
+    vehicle_plate_number : {
+      type:String,
+      required:true,
     },
     status: {
       type: String,

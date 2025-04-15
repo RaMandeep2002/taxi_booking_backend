@@ -51,11 +51,11 @@ export const updateDriverStatus = async (req: Request, res: Response) => {
   }
 };
 
-export const getTheDriverVechicle = async (req: Request, res: Response) => {
+export const getAllVehicles = async (req: Request, res: Response) => {
   
   try {
     const vehicles = await Vehicle.find().select(
-      "_id company vehicleModel year status registrationNumber isAssigned"
+      "_id company vehicleModel year vehicle_plate_number status registrationNumber isAssigned"
     );
 
 
@@ -75,26 +75,26 @@ export const getTheDriverVechicle = async (req: Request, res: Response) => {
   }
 };
 
-export const getAllVehicles = async (req: Request, res: Response) => {
-  try {
-    const vehicles = await Vehicle.find().select(
-      "_id company vehicleModel year status registrationNumber isShared"
-    );
+// export const getAllVehicles = async (req: Request, res: Response) => {
+//   try {
+//     const vehicles = await Vehicle.find().select(
+//       "_id company vehicleModel year status registrationNumber isShared"
+//     );
 
-    if (!vehicles || vehicles.length === 0) {
-       res.status(404).json({ message: "No vehicles found" });
-       return;
-    }
+//     if (!vehicles || vehicles.length === 0) {
+//        res.status(404).json({ message: "No vehicles found" });
+//        return;
+//     }
 
-    res.status(200).json({
-      message: "All vehicles retrieved successfully",
-      vehicles,
-    });
-  } catch (error) {
-    console.error("Error fetching all vehicles:", error);
-    res.status(500).json({ message: "Internal server error", error });
-  }
-};
+//     res.status(200).json({
+//       message: "All vehicles retrieved successfully",
+//       vehicles,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching all vehicles:", error);
+//     res.status(500).json({ message: "Internal server error", error });
+//   }
+// };
 
 export const startShift = async (req: Request, res: Response) => {
   console.log("enter");

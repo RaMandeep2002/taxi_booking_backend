@@ -6,7 +6,6 @@ import {
   end_Ride,
   getAllVehicles,
   // endRide,
-  getTheDriverVechicle,
   start_Ride,
   // startRide,
   startShift,
@@ -22,8 +21,8 @@ import { getAllBookingRider } from "../controller/BookingRide";
 const router = express.Router();
 
 // router.post("/driver_login", driverLogin);
-router.get("/getDriverVechile", getTheDriverVechicle);
-router.get("/getallVechile", authenticate, authorize(["driver"]), getAllVehicles);
+router.get("/getDriverVechile", getAllVehicles);
+// router.get("/getallVechile", authenticate, authorize(["driver"]), getAllVehicles);
 router.post(
   "/start-shift",
   authenticate,

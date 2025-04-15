@@ -11,7 +11,7 @@ import { Roles } from "../types/roles";
 import redisClinet from "../config/redis";
 import fs from "fs";
 import { format } from "fast-csv";
-import { DriverAddSchema, registerSharedVehicleSchema, registerVehicleSchema } from "../schema/DriverSchema";
+import { DriverAddSchema, registerSharedVehicleSchema, registerVehicleSchema, updateDriverAddSchema, updateVehicleSchema } from "../schema/DriverSchema";
 import { SettingSchemaModel } from "../models/SettingModels";
 import { SettingSchema } from "../schema/SettingSchema";
 import { Shift } from "../models/ShiftModel";
@@ -150,8 +150,8 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
   const { drivers } = req.body; // Expecting an array of driver objects
 
   if (!Array.isArray(drivers) || drivers.length === 0) {
-   res.status(400).json({ message: "Invalid input. Expected an array of drivers." });
-   return;
+    res.status(400).json({ message: "Invalid input. Expected an array of drivers." });
+    return;
   }
 
   const validationResults = drivers.map(driver => DriverAddSchema.safeParse(driver));
@@ -159,7 +159,7 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
   // Check if all inputs are valid
   const invalidResults = validationResults.filter(result => !result.success);
   if (invalidResults.length > 0) {
-     res.status(400).json({
+    res.status(400).json({
       message: "Validation errors in some drivers",
       errors: invalidResults.map(result => result.error.errors),
     });
@@ -206,8 +206,8 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
     const validDrivers = processedDrivers.filter(driver => driver !== null);
 
     if (validDrivers.length === 0) {
-       res.status(400).json({ message: "No new drivers were added." });
-       return;
+      res.status(400).json({ message: "No new drivers were added." });
+      return;
     }
 
     // Insert all valid drivers in one go
@@ -261,33 +261,16 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
 //       .json({ success: false, message: "Error fetching drivers", error });
 //   }
 // };
-
 export const getDriverDetails = async (req: Request, res: Response) => {
   try {
-    const cachedkey = "all_drivers";
-    const cachedData = await redisClinet.get(cachedkey);
-
-    if (cachedData) {
-     res.status(200).json({
-        success: true,
-        message: "Drivers fetched from cache",
-        data: JSON.parse(cachedData),
-      });
-      return;
-    }
-
-    const drivers = await Driver.find();
-
-     await redisClinet.set(cachedkey, JSON.stringify(drivers), {
-      EX: 3600,
-    });
-
-
+    const drivers = await Driver.find().lean(); // Using lean() for faster query
+    
     res.status(200).json({
       success: true,
-      messge: "Driver Fetch successfully",
+      message: "Drivers fetched successfully",
       data: drivers,
     });
+
   } catch (error) {
     res
       .status(500)
@@ -296,42 +279,69 @@ export const getDriverDetails = async (req: Request, res: Response) => {
 };
 export const upadateDriver = async (req: Request, res: Response) => {
   const { driverId } = req.params;
-  const validationResult = DriverAddSchema.safeParse(req.body);
+  const validationResult = updateDriverAddSchema.safeParse(req.body);
   if (!validationResult.success) {
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const { drivername: name, email, phoneNumber } = validationResult.data;
+  const { drivername, email, phoneNumber, driversLicenseNumber } = validationResult.data;
 
   try {
-    const updateDriver = await Driver.findOneAndUpdate(
-      { driverId },
-      { $set: { name, email, phoneNumber } },
-      { new: true },
-    );
-
-    if (!updateDriver) {
-      res.status(404).json({ message: "Driver not found" });
+    const originalDriver = await Driver.findOne({ driverId });
+    if (!originalDriver) {
+      res.status(404).json({ message: "Driver not found!" });
       return;
     }
 
+    const oldEmail = originalDriver.email;
+
+    const updatedDriver = await Driver.findOneAndUpdate(
+      { driverId },
+      { $set: { drivername, email, phoneNumber, driversLicenseNumber } },
+      { new: true }
+    );
+    console.log("Updated Driver --------> ", updatedDriver);
+
+    await User.findOneAndUpdate(
+      {email:oldEmail},
+      {$set:{name:drivername, email}}
+    );
+
     res
       .status(200)
-      .json({ message: "Driver update successfully", updateDriver });
+      .json({ message: "Driver update successfully", updatedDriver });
   } catch (error: any) {
-    res.status(500).json({ message: "Error Updating Drvier", error });
+    res.status(500).json({ message: "Error Updating Driver", error });
   }
 };
 export const deleteDriver = async (req: Request, res: Response) => {
   const { driverId } = req.params;
 
+  if(!driverId){
+    res.status(400).json({message:"DriverId is Invaild!!"});
+    return;
+  }
+
   try {
+    const originalDriver = await Driver.findOne({driverId});
+    console.log("originalDriver -----> ", originalDriver);
+    if(!originalDriver){
+      res.status(404).json({message:"Driver not found!!"});
+      return;
+    }
+
+    const emailwhichtobedeleted = originalDriver.email;
+    console.log("emailwhichtobedeleted  -----> ", emailwhichtobedeleted );
+
     const deleteDriver = await Driver.findOneAndDelete({ driverId });
+    console.log("deleteDriver  -----> ", deleteDriver );
 
     if (!deleteDriver) {
       res.status(404).json({ message: "Driver not found" });
       return;
     }
+
+    await User.findOneAndDelete({email: emailwhichtobedeleted});
 
     res.status(200).json({ message: "Driver Deleted Successfully" });
   } catch (error: any) {
@@ -359,8 +369,8 @@ export const registerVehiclewithparams = async (req: Request, res: Response) => 
     }
 
     const { registrationNumber } = generateRandomRegistrationNumber(); // Fix function name
-    console.log("Driver Id ===> ",driverId)
-    const driver = await Driver.findOne({driverId}).populate("vehicle");
+    console.log("Driver Id ===> ", driverId)
+    const driver = await Driver.findOne({ driverId }).populate("vehicle");
     console.log(driver);
     if (!driver) {
       res.status(404).json({ message: "Driver not found!" });
@@ -382,7 +392,7 @@ export const registerVehiclewithparams = async (req: Request, res: Response) => 
     await driver.save();
 
     // Populate the driver's vehicle data
-    const updatedDriver = await Driver.findOne({driverId}).populate("vehicle");
+    const updatedDriver = await Driver.findOne({ driverId }).populate("vehicle");
     console.log("updatedDriver ===> ", updatedDriver)
     // Return the updated driver data with the vehicle details
     res.status(201).json({
@@ -416,8 +426,8 @@ export const registerVehicle = async (req: Request, res: Response) => {
     }
 
     const { registrationNumber } = generateRandomRegistrationNumber(); // Fix function name
-    console.log("Driver Id ===> ",driverId)
-    const driver = await Driver.findOne({driverId}).populate("vehicle");
+    console.log("Driver Id ===> ", driverId)
+    const driver = await Driver.findOne({ driverId }).populate("vehicle");
     console.log(driver);
     if (!driver) {
       res.status(404).json({ message: "Driver not found!" });
@@ -439,7 +449,7 @@ export const registerVehicle = async (req: Request, res: Response) => {
     await driver.save();
 
     // Populate the driver's vehicle data
-    const updatedDriver = await Driver.findOne({driverId}).populate("vehicle");
+    const updatedDriver = await Driver.findOne({ driverId }).populate("vehicle");
     console.log("updatedDriver ===> ", updatedDriver)
     // Return the updated driver data with the vehicle details
     res.status(201).json({
@@ -456,15 +466,15 @@ export const registerVehicle = async (req: Request, res: Response) => {
 
 export const registerSharedVehicle = async (req: Request, res: Response) => {
   console.log(req.body);
-  
+
   const validationResult = registerSharedVehicleSchema.safeParse(req.body);
   console.log("validation result ==> ", validationResult);
   if (!validationResult.success) {
-     res.status(400).json({ errors: validationResult.error.errors });
-     return;
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
   }
 
-  const { company, vehicleModel, year, status } = validationResult.data;
+  const { company, vehicleModel, year,vehicle_plate_number, status } = validationResult.data;
 
   try {
     const { registrationNumber } = generateRandomRegistrationNumber();
@@ -474,6 +484,7 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
       company,
       vehicleModel,
       year,
+      vehicle_plate_number,
       status: status || "available", // Mark it as available for all
       isShared: true, // optional flag to indicate shared vehicle
     });
@@ -554,13 +565,13 @@ export const getDriverWithVehicleandshifts = async (req: Request, res: Response)
       return;
     }
 
-    const driver = await Driver.findOne({driverId});
-    if(!driver){
-      res.status(404).json({message:"Driver not found!!"});
+    const driver = await Driver.findOne({ driverId });
+    if (!driver) {
+      res.status(404).json({ message: "Driver not found!!" });
       return;
     }
     // Find the driver and populate the vehicle details
-    const driverVechicleandShift = await Driver.findOne({driverId}).populate("vehicle").populate("shifts");
+    const driverVechicleandShift = await Driver.findOne({ driverId }).populate("vehicle").populate("shifts");
 
     if (!driverVechicleandShift) {
       res.status(404).json({ message: "Driver shift not found!" });
@@ -581,14 +592,14 @@ export const getDriverWithVehicleandshifts = async (req: Request, res: Response)
 };
 
 export const updateVehicleInfomation = async (req: Request, res: Response) => {
-  const { driverId, registrationNumber } = req.params;
-  const validationResult = registerVehicleSchema.safeParse(req.body);
+  const { registrationNumber } = req.params;
+  const validationResult = updateVehicleSchema.safeParse(req.body);
   if (!validationResult.success) {
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
 
-  const { company, vehicleModel, year, status } = validationResult.data;
+  const { company, vehicleModel, year, vehicle_plate_number } = validationResult.data;
   try {
     const vehicle = await Vehicle.findOne({ registrationNumber });
     if (!vehicle) {
@@ -596,15 +607,15 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
       return;
     }
 
-    const driver = await Driver.findOne({ driverId });
-    if (!driver) {
-      res.status(404).json({ message: "Driver doest exist!!" });
-      return;
-    }
+    // const driver = await Driver.findOne({ driverId });
+    // if (!driver) {
+    //   res.status(404).json({ message: "Driver doest exist!!" });
+    //   return;
+    // }
 
-    const updateDriver = await Driver.findOneAndUpdate(
-      { driverId, registrationNumber },
-      { $set: { company, vehicleModel, year, status } },
+    const updateDriver = await Vehicle.findOneAndUpdate(
+      { registrationNumber },
+      { $set: { company, vehicleModel, year, vehicle_plate_number } },
       { new: true },
     );
 
@@ -616,16 +627,16 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
   }
 };
 export const removeVehicle = async (req: Request, res: Response) => {
-  const { driverId } = req.params;
-  const { registrationNumber } = req.body;
+  const { registrationNumber } = req.params;
+
+
+  if(!registrationNumber){
+    res.status(400).json({message:"DriverId is Invaild!!"});
+    return;
+  }
+
 
   try {
-    const existingDriver = await Driver.findOne({ driverId });
-    if (!existingDriver) {
-      res.status(404).json({ message: "Driver doesn't exist for this id" });
-      return;
-    }
-
     const existingVehicle = await Vehicle.findOne({ registrationNumber });
     if (!existingVehicle) {
       res.status(404).json({ message: "Vehicle is not found" });
@@ -634,13 +645,13 @@ export const removeVehicle = async (req: Request, res: Response) => {
 
     // Remove vehicle from driver's vehicle array
     await Driver.findOneAndUpdate(
-      { driverId },
+      { registrationNumber },
       { $unset: { vehicle: "" } }
     );
 
     // Delete the vehicle document
     const removedVehicle = await Vehicle.findOneAndDelete({
-      registrationNumber,
+      registrationNumber
     });
 
     if (!removedVehicle) {
@@ -685,11 +696,11 @@ export const gettingReport = async (req: Request, res: Response) => {
       },
       { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
       {
-        $lookup:{
-          from:"vehicles",
-          localField:"driver.vehicle",
-          foreignField:"_id",
-          as:"driver.vehicles"
+        $lookup: {
+          from: "vehicles",
+          localField: "driver.vehicle",
+          foreignField: "_id",
+          as: "driver.vehicles"
         }
       },
       { $unwind: { path: "$driver.vehicles", preserveNullAndEmptyArrays: true } },
@@ -872,8 +883,8 @@ export const setting = async (req: Request, res: Response) => {
   const validationResult = SettingSchema.safeParse(req.body);
 
   if (!validationResult.success) {
-     res.status(400).json({ errors: validationResult.error.errors });
-     return;
+    res.status(400).json({ errors: validationResult.error.errors });
+    return;
   }
 
   const { base_price, km_price, waiting_time_price_per_minutes } = validationResult.data;
@@ -908,17 +919,17 @@ export const setting = async (req: Request, res: Response) => {
   }
 };
 
-export const updateSettings = async(req:Request, res:Response) =>{
+export const updateSettings = async (req: Request, res: Response) => {
   const validationResult = SettingSchema.safeParse(req.body);
 
   if (!validationResult.success) {
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const {base_price, km_price, waiting_time_price_per_minutes } = validationResult.data;
+  const { base_price, km_price, waiting_time_price_per_minutes } = validationResult.data;
 
-  if(!base_price || !km_price || !waiting_time_price_per_minutes){
-    res.status(400).json({message:"Both base basePrice and pricePerkm is required!"});
+  if (!base_price || !km_price || !waiting_time_price_per_minutes) {
+    res.status(400).json({ message: "Both base basePrice and pricePerkm is required!" });
     return;
   }
 
@@ -947,20 +958,20 @@ export const updateSettings = async(req:Request, res:Response) =>{
   }
 }
 
-export const getsetting = async(req:Request, res:Response) =>{
+export const getsetting = async (req: Request, res: Response) => {
 
-    try{
-      const settings = await SettingSchemaModel.find();
-      console.log("settings ------> ", settings)
-      if(!settings){
-        res.status(404).json({message:"Settings not found!!"});
-        return;
-      }
-
-      res.status(200).json({message:"Setting fetch Successfully", settings});
+  try {
+    const settings = await SettingSchemaModel.find();
+    console.log("settings ------> ", settings)
+    if (!settings) {
+      res.status(404).json({ message: "Settings not found!!" });
+      return;
     }
-  catch(error:any){
-    res.status(500).json({message:"Something worng!!", error});
+
+    res.status(200).json({ message: "Setting fetch Successfully", settings });
+  }
+  catch (error: any) {
+    res.status(500).json({ message: "Something worng!!", error });
   }
 }
 
@@ -978,7 +989,7 @@ export const getAllShifts = async (req: Request, res: Response) => {
       })
       .sort({ createdAt: -1 }); // latest first
 
-    res.status(200).json({json:"Successfully Fetch shifts ",shifts});
+    res.status(200).json({ json: "Successfully Fetch shifts ", shifts });
   } catch (error) {
     console.error("Error fetching shifts:", error);
     res.status(500).json({ message: "Something went wrong!" });

@@ -24,6 +24,7 @@ import {
   registerSharedVehicle,
   getAllShifts,
   getAllShifts12,
+  updateSettings,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -85,14 +86,14 @@ router.get(
 
 
 router.put(
-  "/update-vehicle/:driverId/:registrationNumber",
+  "/update-vehicle/:registrationNumber",
   authenticate,
   authorize(["admin"]),
   updateVehicleInfomation,
 );
 
 router.delete(
-  "/remove-vehicle/:driverId",
+  "/remove-vehicle/:registrationNumber",
   authenticate,
   authorize(["admin"]),
   removeVehicle,
@@ -114,6 +115,7 @@ router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
 
 
 router.post("/settings", authenticate, authorize(["admin"]), setting);
+router.put("/settings", authenticate, authorize(["admin"]), updateSettings);
 router.get("/settings", getsetting);
 
 router.get("/shiftsHistory",getAllShifts12)
