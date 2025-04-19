@@ -772,12 +772,23 @@ export const end_Ride = async (req: Request, res: Response) => {
 
   const driverId = getDriverId(token);
   // waiting time 
-  const { bookingId,distance,wating_time, discount_price, dropOff: { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } } = req.body;
+  const { bookingId, distance, wating_time, discount_price, dropOff } = req.body;
 
-  if (!driverId || !bookingId || !distance || !wating_time ||  !dropLatitude || !dropLongitude || !dropAddress) {
-    res.status(400).json({ message: "driverId, bookingId and drop-off location are required" });
-    return;
+  if (
+    !driverId || 
+    !bookingId || 
+    !distance || 
+    !wating_time || 
+    !dropOff?.latitude || 
+    !dropOff?.longitude || 
+    !dropOff?.address
+  ) {
+     res.status(400).json({ message: "driverId, bookingId and drop-off location are required" });
+     return;
   }
+  
+  const { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } = dropOff;
+  
 
   try {
     const settings = await SettingSchemaModel.findOne();
