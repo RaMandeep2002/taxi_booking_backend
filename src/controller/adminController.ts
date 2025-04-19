@@ -685,7 +685,24 @@ export const deleteBookingdata = async (req: Request, res: Response) => {
 
 export const gettingReport = async (req: Request, res: Response) => {
   try {
+    console.log("Enter");
+    const { fromDate, toDate, pickup, drivername, company } = req.query;
+
+    const matchStage: any = {};
+    console.log("matchStage ------> ",matchStage)
+    if (fromDate && toDate) {
+      matchStage.pickupDate = {
+        $gte: new Date(fromDate as string),
+        $lte: new Date(toDate as string),
+      };
+    }
+
+    if (pickup) {
+      matchStage["pickup.address"] = { $regex: pickup, $options: "i" };
+    }
+
     const bookings = await BookingModels.aggregate([
+      { $match: matchStage },
       {
         $lookup: {
           from: "drivers",
@@ -705,11 +722,17 @@ export const gettingReport = async (req: Request, res: Response) => {
       },
       { $unwind: { path: "$driver.vehicles", preserveNullAndEmptyArrays: true } },
       {
+        $match: {
+          ...(drivername ? { "driver.drivername": { $regex: drivername, $options: "i" } } : {}),
+          ...(company ? { "driver.vehicles.vehicle_plate_number": { $regex: company, $options: "i" } } : {}),
+        }
+      },
+      {
         $project: {
           bookingId: 1,
           customerName: 1,
           phoneNumber: 1,
-          pickup: 1,
+          "pickup.address": 1,
           dropOff: 1,
           pickuptime: 1,
           pickupDate: 1,
@@ -736,6 +759,7 @@ export const gettingReport = async (req: Request, res: Response) => {
           "driver.vehicles.company": 1,
           "driver.vehicles.vehicleModel": 1,
           "driver.vehicles.year": 1,
+          "driver.vehicles.vehicle_plate_number":1,
         },
       },
     ]);
@@ -767,6 +791,8 @@ export const gettingReport = async (req: Request, res: Response) => {
         CUSTOMER_PHONE: booking.phoneNumber,
         ADDRESS: booking.pickup?.address || "N/A",
         VEHICLE: booking.driver.vehicles?.company || "N/A",
+        VEHICLE_Number: booking.driver.vehicles?.vehicle_plate_number || "N/A",
+        METER:booking.distance,
       });
     });
 
@@ -786,6 +812,112 @@ export const gettingReport = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
+// export const gettingReport = async (req: Request, res: Response) => {
+//   try {
+//     const bookings = await BookingModels.aggregate([
+//       {
+//         $lookup: {
+//           from: "drivers",
+//           localField: "driver",
+//           foreignField: "_id",
+//           as: "driver",
+//         },
+//       },
+//       { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+//       {
+//         $lookup: {
+//           from: "vehicles",
+//           localField: "driver.vehicle",
+//           foreignField: "_id",
+//           as: "driver.vehicles"
+//         }
+//       },
+//       { $unwind: { path: "$driver.vehicles", preserveNullAndEmptyArrays: true } },
+//       {
+//         $project: {
+//           bookingId: 1,
+//           customerName: 1,
+//           phoneNumber: 1,
+//           pickup: 1,
+//           dropOff: 1,
+//           pickuptime: 1,
+//           pickupDate: 1,
+//           pickupTimeFormatted: 1,
+//           pickupMonth: 1,
+//           pickupWeek: 1,
+//           dropdownDate: 1,
+//           dropdownTime: 1,
+//           arrived: 1,
+//           distance: 1,
+//           totalFare: 1,
+//           paymentStatus: 1,
+//           status: 1,
+//           // Driver details
+//           "driver.driverId": 1,
+//           "driver.drivername": 1,
+//           "driver.email": 1,
+//           "driver.phoneNumber": 1,
+//           "driver.status": 1,
+//           "driver.isOnline": 1,
+//           // Vehicle details
+//           "driver.vehicles._id": 1,
+//           "driver.vehicles.registrationNumber": 1,
+//           "driver.vehicles.company": 1,
+//           "driver.vehicles.vehicleModel": 1,
+//           "driver.vehicles.year": 1,
+//           "driver.vehicles.vehicle_plate_number":1,
+//         },
+//       },
+//     ]);
+
+//     console.log("bookings ===> ", bookings)
+
+//     if (!bookings.length) {
+//       res.status(404).json({ message: "No bookings found" });
+//       return;
+//     }
+
+//     const filepath = "bookings.csv";
+//     const writeableStream = fs.createWriteStream(filepath);
+//     const csvStream = format({ headers: true });
+
+//     csvStream.pipe(writeableStream);
+
+//     bookings.forEach((booking) => {
+//       csvStream.write({
+//         Booking_ID: booking.bookingId,
+//         PICKUP_DATE: booking.pickupDate,
+//         PICKUP_TIME: booking.pickuptime,
+//         PICKUP_MONTH: booking.pickupMonth,
+//         PICKUP_WEEK: booking.pickupWeek,
+//         ARRIVED: booking.arrived,
+//         CONTACT: booking.driver.phoneNumber,
+//         FINISH_DATE: booking.dropdownDate,
+//         FINISH_TIME: booking.dropdownTime,
+//         CUSTOMER_PHONE: booking.phoneNumber,
+//         ADDRESS: booking.pickup?.address || "N/A",
+//         VEHICLE: booking.driver.vehicles?.company || "N/A",
+//         VEHICLE_Number: booking.driver.vehicles?.vehicle_plate_number || "N/A",
+//         METER:booking.distance,
+//       });
+//     });
+
+//     csvStream.end();
+
+//     writeableStream.on("finish", () => {
+//       res.download(filepath, "bookings.csv", (err) => {
+//         if (err) {
+//           console.error("Error sending file:", err);
+//           res.status(500).json({ message: "Error generating CSV file." });
+//         }
+//         fs.unlinkSync(filepath);
+//       });
+//     });
+//   } catch (error) {
+//     console.error(error);
+//     res.status(500).json({ message: "Internal server error" });
+//   }
+// };
 
 
 
@@ -827,9 +959,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       },
       {
         $project: {
-          bookingId: 1,
-          customerName: 1,
-          phoneNumber: 1,
+          bookingId:1,
           pickup: 1,
           dropOff: 1,
           pickuptime: 1,
@@ -839,26 +969,24 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           pickupWeek: 1,
           dropdownDate: 1,
           dropdownTime: 1,
-          arrived: 1,
+          wating_time:1,
           distance: 1,
           totalFare: 1,
           paymentStatus: 1,
           status: 1,
           // Driver details
-          "driver.driverId": 1,
           "driver.drivername": 1,
-          "driver.email": 1,
-          "driver.phoneNumber": 1,
-          "driver.status": 1,
-          "driver.isOnline": 1,
           //vehicle details
-          "driver.vehicles._id": 1,
-          "driver.vehicles.registrationNumber": 1,
           "driver.vehicles.company": 1,
           "driver.vehicles.vehicleModel": 1,
-          "driver.vehicles.year": 1,
         },
       },
+      {
+        $sort: {
+          pickupDate: -1, // Sort by pickup date descending (newest first)
+          pickuptime: -1  // Then sort by pickup time descending
+        }
+      }
     ])
 
 

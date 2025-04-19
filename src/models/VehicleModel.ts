@@ -35,7 +35,6 @@ const VehicleSchema: Schema = new Schema(
     },
     vehicle_plate_number : {
       type:String,
-      required:true,
     },
     status: {
       type: String,

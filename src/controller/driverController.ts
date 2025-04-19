@@ -646,7 +646,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
 export const start_Ride = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
   const driverId = getDriverId(token);
-
+  console.log("driverID -----> ", driverId)
   const {
     customerName,
     phoneNumber,
@@ -705,8 +705,8 @@ export const start_Ride = async (req: Request, res: Response) => {
         longitude: null,
         address: null
       },
-      pickuptime: now.toLocaleTimeString(),
-      pickupDate: now.toLocaleDateString(),
+      pickuptime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      pickupDate: new Date().toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'}),
       pickupTimeFormatted: now.toISOString(),
       pickupMonth: now.toLocaleString('default', { month: 'long' }),
       pickupWeek: Math.ceil(now.getDate() / 7),
@@ -834,8 +834,8 @@ export const end_Ride = async (req: Request, res: Response) => {
     booking.discount_price += discount_price;
     booking.after_discount_price += discounted_price_calaute;
     booking.wating_time += wating_time;
-    booking.dropdownDate =  new Date().toLocaleDateString();
-    booking.dropdownTime = new Date().toLocaleTimeString();
+    booking.dropdownDate =  new Date().toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+    booking.dropdownTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     booking.dropOff = { 
       latitude: dropLatitude,
       longitude: dropLongitude,
