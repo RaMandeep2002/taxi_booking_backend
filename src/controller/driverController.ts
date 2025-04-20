@@ -758,6 +758,122 @@ export const start_Ride = async (req: Request, res: Response) => {
   }
 };
 
+export const start_Ride_with_pickuptime = async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  const driverId = getDriverId(token);
+  console.log("driverID -----> ", driverId)
+  const {
+    customerName,
+    phoneNumber,
+    pickuptime,
+    pickupDate,
+    pickup: { latitude, longitude, address }
+  } = req.body;
+
+  // Validate required fields
+
+  // const shiftStartTime = startTime || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+  if (
+    !driverId ||
+    latitude === undefined ||
+    longitude === undefined ||
+    !address
+  ) {
+   res.status(400).json({
+      message: "All fields are required: customerName, phoneNumber, and pickup location"
+    });
+    return;
+  }
+
+  try {
+    // Find driver
+    const driver = await Driver.findOne({ driverId });
+    if (!driver) {
+       res.status(404).json({ message: "Driver not found!" });
+       return;
+    }
+
+    console.log("driver ------> ",driver);
+
+    // Find shift
+    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    if (!activeShift) {
+       res.status(400).json({ message: "No active shift found" });
+       return;
+    }
+
+    console.log("activeShift ------> ", activeShift)
+
+    const now = new Date();
+
+    // Generate booking ID
+    const bookingId = generateBookingId();
+
+    // Create new booking instance
+    const bookingDoc ={
+      bookingId,
+      customerName,
+      phoneNumber,
+      pickup: {
+        latitude,
+        longitude,
+        address
+      },
+      dropOff: {
+        latitude: null,
+        longitude: null,
+        address: null
+      },
+      pickuptime:pickuptime || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+      pickupDate:pickupDate|| new Date().toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'}),
+      pickupTimeFormatted: now.toISOString(),
+      pickupMonth: now.toLocaleString('default', { month: 'long' }),
+      pickupWeek: Math.ceil(now.getDate() / 7),
+      driver: driver._id,
+      status: "ongoing",
+      arrived: true,
+      paymentStatus: "pending",
+      paymentMethod: "cash"
+    };
+
+    const booking = new BookingModels(bookingDoc);
+    await booking.save();
+    console.log("booking ===>", booking)
+
+    const getbooking = await BookingModels.findOne({bookingId});
+    console.log("getbooking ===>", getbooking)
+    if(!getbooking){  
+      res.status(404).json({message:"no booking found!"});
+      return;
+    }
+    // Update shift
+    activeShift.totalTrips += 1;
+    activeShift.bookings.push(booking._id as any); // 👈 Add booking to shift
+
+    // Update driver
+    driver.status = "busy";
+
+    // Save updates
+    await Promise.all([
+      activeShift.save(), // 👈 Will now store the booking inside shift
+      driver.save()
+    ]);
+
+    res.status(200).json({
+      message: "Ride started successfully",
+      booking: bookingDoc
+    });
+    return;
+  } catch (error: any) {
+    console.error("Ride start error:", error);
+     res.status(500).json({
+      message: "Error starting the ride",
+      error: error.message || error
+    });
+    return;
+  }
+};
+
 
 // Utility function to generate booking ID (create in separate file)
 function generateBookingId(): string {
@@ -852,6 +968,108 @@ export const end_Ride = async (req: Request, res: Response) => {
     booking.wating_time += wating_time;
     booking.dropdownDate =  new Date().toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
     booking.dropdownTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    booking.dropOff = { 
+      latitude: dropLatitude,
+      longitude: dropLongitude,
+      address: dropAddress
+    };
+
+    activeShift.totalEarnings += totalFare;
+    activeShift.totalDistance += distance;
+
+    await activeShift.save();
+    await booking.save();
+    await driver.save();
+
+    res.status(200).json({ message: "Ride ended successfully", booking });
+  }
+  catch (error) {
+    res.status(500).json({ message: "Error ending the ride", error });
+  }
+}
+
+export const end_Ride_with_dropTime = async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  const driverId = getDriverId(token);
+  console.log("driver Id ----> ", driverId)
+  // waiting time 
+  console.log(req.body);
+  const { bookingId, distance, wating_time, discount_price,dropdownDate,dropdownTime, dropOff } = req.body;
+
+  if (
+    !driverId || 
+    !bookingId || 
+    distance === undefined || 
+    wating_time === undefined || 
+    dropOff?.latitude === undefined|| 
+    dropOff?.longitude === undefined|| 
+    !dropOff?.address
+  ) {
+     res.status(400).json({ message: "driverId, bookingId and drop-off location are required" });
+     return;
+  }
+  
+  const { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } = dropOff;
+  
+
+  try {
+    const settings = await SettingSchemaModel.findOne();
+    if(!settings){
+      res.status(404).json({message:"No setting found!!"});
+      return;
+    }
+
+    const FLAG_PRICE = settings.base_price;
+    const DISTANCE_PRICE_PER_KM = settings.km_price;
+    const WAITING_TIME_RATE_PER_MIN = settings.waiting_time_price_per_minutes;
+
+    const driver = await Driver.findOne({ driverId });
+    if (!driver) {
+      res.status(404).json({ message: "Driver not found!!" });
+      return;
+    }
+
+    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    if (!activeShift) {
+      res.status(400).json({ message: "no active shift found" });
+      return;
+    }
+
+    const booking = await BookingModels.findOne({ bookingId });
+    if (!booking) {
+      res.status(404).json({ message: "Booking not found!!" });
+      return;
+    }
+
+    if (booking.status !== "ongoing") {
+      res.status(400).json({ message: "Booking is not ongoing" });
+      return;
+    }
+
+    if (driver.status !== "busy") {
+      res.status(400).json({ message: "Driver is not busy" });
+      return;
+    }
+
+    // const time = new Date();
+    const totalFare = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
+
+    const discounted_price_calaute = totalFare - discount_price;
+
+    activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
+    activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
+
+    booking.status = "completed";
+    booking.paymentStatus = "paid";
+    driver.status = "available";
+    booking.distance += distance;
+    booking.totalFare += totalFare;
+    booking.discount_price += discount_price;
+    booking.after_discount_price += discounted_price_calaute;
+    booking.wating_time += wating_time;
+    booking.dropdownDate = dropdownDate ||  new Date().toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
+    booking.dropdownTime = dropdownTime || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     booking.dropOff = { 
       latitude: dropLatitude,
       longitude: dropLongitude,

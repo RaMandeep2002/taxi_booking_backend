@@ -682,18 +682,34 @@ export const deleteBookingdata = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error deleting all booking", error });
   }
 };
-
 export const gettingReport = async (req: Request, res: Response) => {
   try {
     console.log("Enter");
-    const { fromDate, toDate, pickup, drivername, company } = req.query;
+    
+    // Decode query params
+    const rawFromDate = req.query.fromDate as string;
+    const rawToDate = req.query.toDate as string;
+    const pickup = req.query.pickup as string;
+    const drivername = req.query.drivername as string;
+    const company = req.query.company as string;
+
+    console.log("rawFromDate -----> ", rawFromDate)
+    console.log("rawToDate -----> ", rawToDate) 
+    console.log("pickup -----> ", pickup)
+    console.log("drivername -----> ", drivername)
+    console.log("company -----> ", company)
+
+    const fromDateDecoded = rawFromDate ? decodeURIComponent(rawFromDate) : undefined;
+    const toDateDecoded = rawToDate ? decodeURIComponent(rawToDate) : undefined;
+
+    console.log("fromDateDecoded -----> ", fromDateDecoded)
+    console.log("toDateDecoded -----> ", toDateDecoded)
 
     const matchStage: any = {};
-    console.log("matchStage ------> ",matchStage)
-    if (fromDate && toDate) {
+    if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
-        $gte: new Date(fromDate as string),
-        $lte: new Date(toDate as string),
+        $gte: fromDateDecoded,
+        $lte: toDateDecoded,
       };
     }
 
@@ -746,25 +762,21 @@ export const gettingReport = async (req: Request, res: Response) => {
           totalFare: 1,
           paymentStatus: 1,
           status: 1,
-          // Driver details
           "driver.driverId": 1,
           "driver.drivername": 1,
           "driver.email": 1,
           "driver.phoneNumber": 1,
           "driver.status": 1,
           "driver.isOnline": 1,
-          // Vehicle details
           "driver.vehicles._id": 1,
           "driver.vehicles.registrationNumber": 1,
           "driver.vehicles.company": 1,
           "driver.vehicles.vehicleModel": 1,
           "driver.vehicles.year": 1,
-          "driver.vehicles.vehicle_plate_number":1,
+          "driver.vehicles.vehicle_plate_number": 1,
         },
       },
     ]);
-
-    console.log("bookings ===> ", bookings)
 
     if (!bookings.length) {
       res.status(404).json({ message: "No bookings found" });
@@ -785,14 +797,14 @@ export const gettingReport = async (req: Request, res: Response) => {
         PICKUP_MONTH: booking.pickupMonth,
         PICKUP_WEEK: booking.pickupWeek,
         ARRIVED: booking.arrived,
-        CONTACT: booking.driver.phoneNumber,
+        CONTACT: booking.driver?.phoneNumber || "N/A",
         FINISH_DATE: booking.dropdownDate,
         FINISH_TIME: booking.dropdownTime,
         CUSTOMER_PHONE: booking.phoneNumber,
         ADDRESS: booking.pickup?.address || "N/A",
-        VEHICLE: booking.driver.vehicles?.company || "N/A",
-        VEHICLE_Number: booking.driver.vehicles?.vehicle_plate_number || "N/A",
-        METER:booking.distance,
+        VEHICLE: booking.driver?.vehicles?.company || "N/A",
+        VEHICLE_Number: booking.driver?.vehicles?.vehicle_plate_number || "N/A",
+        METER: booking.distance,
       });
     });
 
@@ -807,10 +819,17 @@ export const gettingReport = async (req: Request, res: Response) => {
         fs.unlinkSync(filepath);
       });
     });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Internal server error" });
   }
+};
+
+// Helper to parse MM/DD/YYYY to Date object
+const parseDate = (dateStr: string): Date => {
+  const [month, day, year] = dateStr.split("/");
+  return new Date(`${year}-${month}-${day}T00:00:00Z`);
 };
 // export const gettingReport = async (req: Request, res: Response) => {
 //   try {

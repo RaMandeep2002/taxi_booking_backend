@@ -4,9 +4,11 @@ import {
   cofirmRide,
   deteleallShiftsHistory,
   end_Ride,
+  end_Ride_with_dropTime,
   getAllVehicles,
   // endRide,
   start_Ride,
+  start_Ride_with_pickuptime,
   // startRide,
   startShift,
   startShiftwithtime,
@@ -53,12 +55,24 @@ router.post(
   authorize(["driver"]),
   start_Ride, 
 );
+router.post(
+  "/start-ride-with-pickuptime",
+  authenticate,
+  authorize(["driver"]),
+  start_Ride_with_pickuptime, 
+);
 
 router.post(
   "/stop-ride",
   authenticate,
   authorize(["driver"]),
   end_Ride,
+);
+router.post(
+  "/stop-ride-with-dropTime",
+  authenticate,
+  authorize(["driver"]),
+  end_Ride_with_dropTime,
 );
 // router.post(
 //   "/start-ride/:driverId",
