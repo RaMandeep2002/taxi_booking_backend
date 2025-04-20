@@ -772,13 +772,14 @@ export const end_Ride = async (req: Request, res: Response) => {
 
   const driverId = getDriverId(token);
   // waiting time 
+  console.log(req.body);
   const { bookingId, distance, wating_time, discount_price, dropOff } = req.body;
 
   if (
     !driverId || 
     !bookingId || 
-    !distance || 
-    !wating_time || 
+    distance === undefined || 
+    wating_time === undefined || 
     !dropOff?.latitude || 
     !dropOff?.longitude || 
     !dropOff?.address
