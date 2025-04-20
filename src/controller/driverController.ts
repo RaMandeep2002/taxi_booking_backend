@@ -317,7 +317,9 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
     }
 
     const start = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
+    console.log(`start ----- > ${start}`)
     const end = parse(`${endDate} ${endTime}`, "MM/dd/yyyy hh:mma", new Date());
+    console.log(`end ----- > ${end}`)
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
        res.status(400).json({ message: "Invalid date/time format" });
@@ -325,6 +327,7 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
     }
 
     const durationMs = end.getTime() - start.getTime();
+    console.log(`durationMs ----- > ${durationMs}`)
 
     if (durationMs < 0) {
        res.status(400).json({ message: "End time must be after start time" });
@@ -771,6 +774,7 @@ export const end_Ride = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
 
   const driverId = getDriverId(token);
+  console.log("driver Id ----> ", driverId)
   // waiting time 
   console.log(req.body);
   const { bookingId, distance, wating_time, discount_price, dropOff } = req.body;
