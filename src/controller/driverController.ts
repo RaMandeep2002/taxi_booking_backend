@@ -780,8 +780,8 @@ export const end_Ride = async (req: Request, res: Response) => {
     !bookingId || 
     distance === undefined || 
     wating_time === undefined || 
-    !dropOff?.latitude || 
-    !dropOff?.longitude || 
+    dropOff?.latitude === undefined|| 
+    dropOff?.longitude === undefined|| 
     !dropOff?.address
   ) {
      res.status(400).json({ message: "driverId, bookingId and drop-off location are required" });
