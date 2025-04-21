@@ -19,6 +19,7 @@ import {
 import { authenticate } from "../middleware/authMiddleware";
 import { authorize } from "../middleware/roleMiddleware";
 import { getAllBookingRider } from "../controller/BookingRide";
+import { getsetting } from "../controller/adminController";
 
 const router = express.Router();
 
@@ -100,4 +101,5 @@ router.post("/confirm-ride/:driverId", authenticate, authorize(["driver"]), cofi
 router.post("/cancel-ride/:driverId", authenticate, authorize(["driver"]), cancelRide);
 router.delete("/delete-shifts/:driverId", authenticate, authorize(["driver"]), deteleallShiftsHistory)
 router.get("/getbooking",authenticate, authorize(["driver"]), getAllBookingRider);
+router.get("/settings", getsetting);
 export default router;

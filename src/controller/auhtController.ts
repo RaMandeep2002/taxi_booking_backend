@@ -57,7 +57,42 @@ export const loginuser = async (req: Request, res: Response) => {
     //   expiresIn: "1h",
     // });
     const token = jwt.sign({ id: user._id, role: user.role }, secret);
+    console.log("token ----> ", token)
     res.status(200).json({ message: "Login successful", token });
+  } catch (error) {
+    res.status(500).json({ message: "Error logging in", error });
+  }
+};
+export const loginadmin = async (req: Request, res: Response) => {
+
+  const validationResult = loginSchema.safeParse(req.body);
+  if(!validationResult.success){
+    res.status(400).json({errors: validationResult.error.errors});
+    return;
+  }
+
+  const { email, password } = validationResult.data;
+
+  try {
+    const user: IUser | null = await User.findOne({ email });
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      res.status(400).json({ message: "Invalid credentials" });
+      return;
+    }
+
+    const secret = process.env.JWT_SECRET || "srtaxi";
+    // const token = jwt.sign({ id: user._id, role: user.role }, secret, {
+    //   expiresIn: "1h",
+    // });
+    const token = jwt.sign({ id: user._id, role: user.role }, secret);
+    console.log("token ----> ", token)
+    res.status(200).json({ message: "Login successful", token, role: user.role  });
   } catch (error) {
     res.status(500).json({ message: "Error logging in", error });
   }

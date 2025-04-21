@@ -474,7 +474,7 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
     return;
   }
 
-  const { company, vehicleModel, year,vehicle_plate_number, status } = validationResult.data;
+  const { company, vehicleModel, year,vehicle_plate_number } = validationResult.data;
 
   try {
     const { registrationNumber } = generateRandomRegistrationNumber();
@@ -485,8 +485,7 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
       vehicleModel,
       year,
       vehicle_plate_number,
-      status: status || "available", // Mark it as available for all
-      isShared: true, // optional flag to indicate shared vehicle
+      isShared: true, 
     });
 
     const savedVehicle = await newVehicle.save();

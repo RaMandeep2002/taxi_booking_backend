@@ -39,7 +39,7 @@ const VehicleSchema: Schema = new Schema(
     status: {
       type: String,
       enum: ["active", "free"],
-      default: "free",
+      default: "active",
     },
     currentDriver: {
       type: Schema.Types.ObjectId,

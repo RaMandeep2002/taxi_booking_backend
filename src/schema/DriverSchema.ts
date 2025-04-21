@@ -53,7 +53,6 @@ export const registerSharedVehicleSchema = z.object({
     vehicleModel: z.string().min(3, "Car vehicleModel atleast more than 6 charaters"),
     year:z.number(),
     vehicle_plate_number:z.string(),
-    status: z.enum(["active", "free"]) 
 })
 
 export const updateVehicleSchema = z.object({
