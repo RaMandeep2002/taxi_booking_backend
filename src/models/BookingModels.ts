@@ -1,5 +1,5 @@
 import mongoose, { Document, Schema, Types } from "mongoose";
-import { string } from "zod";
+import { number, string } from "zod";
 
 export interface Location {
   latitude: number;
@@ -24,6 +24,7 @@ export interface IBooking extends Document {
   fareAmount: number;
   distance: number;
   totalFare: number;
+  original_Fare_before_round:number;
   discount_price : number;
   after_discount_price: number;
   wating_time : number;
@@ -98,6 +99,10 @@ const BookingSchema: Schema = new Schema({
   },
   totalFare: {
     type: Number,
+    default: 0,
+  },
+  original_Fare_before_round:{
+    type:Number,
     default: 0,
   },
   discount_price : {

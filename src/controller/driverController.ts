@@ -917,7 +917,7 @@ export const end_Ride = async (req: Request, res: Response) => {
       res.status(404).json({message:"No setting found!!"});
       return;
     }
-
+    console.log("settings ----> ", settings);
     const FLAG_PRICE = settings.base_price;
     const DISTANCE_PRICE_PER_KM = settings.km_price;
     const WAITING_TIME_RATE_PER_MIN = settings.waiting_time_price_per_minutes;
@@ -951,7 +951,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     }
 
     // const time = new Date();
-    const totalFare = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
+    const { original, final: totalFare } = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
 
     const discounted_price_calaute = totalFare - discount_price;
 
@@ -963,6 +963,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     driver.status = "available";
     booking.distance += distance;
     booking.totalFare += totalFare;
+    booking.original_Fare_before_round += original;
     booking.discount_price += discount_price;
     booking.after_discount_price += discounted_price_calaute;
     booking.wating_time += wating_time;
@@ -1053,7 +1054,7 @@ export const end_Ride_with_dropTime = async (req: Request, res: Response) => {
     }
 
     // const time = new Date();
-    const totalFare = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
+    const { original, final: totalFare } = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
 
     const discounted_price_calaute = totalFare - discount_price;
 
@@ -1065,6 +1066,7 @@ export const end_Ride_with_dropTime = async (req: Request, res: Response) => {
     driver.status = "available";
     booking.distance += distance;
     booking.totalFare += totalFare;
+    booking.original_Fare_before_round += original;
     booking.discount_price += discount_price;
     booking.after_discount_price += discounted_price_calaute;
     booking.wating_time += wating_time;
@@ -1091,7 +1093,7 @@ export const end_Ride_with_dropTime = async (req: Request, res: Response) => {
 }
 
 
-function CalculateTaxiTotalFarePrice(flag_price:number,distance_price_per_meter:number,waiting_time_price_per_seconds:number, distance:number, waitingTimeMin:number):number{
+function CalculateTaxiTotalFarePrice(flag_price: number, distance_price_per_meter: number, waiting_time_price_per_seconds: number, distance: number, waitingTimeMin: number): { original: number, final: number } {
   const distanceFare = distance * distance_price_per_meter;
 
   console.log("distanceFare ---------> ", distanceFare)
@@ -1100,10 +1102,43 @@ function CalculateTaxiTotalFarePrice(flag_price:number,distance_price_per_meter:
 
   console.log("waitingTimeFare ---------> ", waitingTimeFare)
 
-  const totalFare =  flag_price + distanceFare + waitingTimeFare;
+  const totalfare = flag_price + distanceFare + waitingTimeFare;
 
-  console.log("totalFare ---------> ", totalFare)
+  console.log("totalFare ---------> ", totalfare)
 
+  const totalfareAfterparas = parseFloat(totalfare.toFixed(2));
+  console.log("totalfareAfterparas ===> ", totalfareAfterparas)
 
-  return parseFloat(totalFare.toFixed(2));
+  const parts = totalfareAfterparas.toFixed(2).split(".");
+  console.log("parts ===> ", parts)
+
+  const beforeDecimal = parts[0];
+  console.log("beforeDecimal ===> ", beforeDecimal)
+  const decimal = parts[1]; // like "58"
+  console.log("decimal ===> ", decimal)
+
+  const firstDigit = decimal[0];
+  console.log("firstDigit ===> ", firstDigit)
+  const lastDigit = parseInt(decimal[1]);
+  console.log("lastDigit ===> ", lastDigit)
+
+  const newLastDigit = lastDigit % 5 === 0 ? lastDigit : lastDigit + (5 - (lastDigit % 5));
+  console.log("newLastDigit ===> ", newLastDigit)
+  const newDecimal = `${firstDigit}${newLastDigit === 10 ? '0' : newLastDigit}`;
+  console.log("newDecimal ===> ", newDecimal)
+
+  let roundedValue = parseFloat(`${beforeDecimal}.${newDecimal}`);
+  console.log("roundedValue ===> ", roundedValue)
+
+  // handle edge case when newLastDigit is 10
+  if (newLastDigit === 10) {
+      roundedValue += 0.1;
+  }
+
+  const totalFare =  parseFloat(roundedValue.toFixed(2));
+
+  return {
+    original: totalfareAfterparas,
+    final: totalFare,
+  };
 }
