@@ -27,7 +27,7 @@ export interface IBooking extends Document {
   original_Fare_before_round:number;
   discount_price : number;
   after_discount_price: number;
-  wating_time : number;
+  wating_time : string;
   driver: Types.ObjectId;
   paymentStatus: "pending" | "paid";
   paymentMethod: "cash" | "card" | "online";
@@ -114,8 +114,8 @@ const BookingSchema: Schema = new Schema({
     default:0
   },
   wating_time:{
-    type:Number,
-    default : 0,
+ type: String,
+  default: "00:00"
   },
   driver: {
     type: Schema.Types.ObjectId,

@@ -895,6 +895,7 @@ export const end_Ride = async (req: Request, res: Response) => {
   console.log(req.body);
   const { bookingId, distance, wating_time, discount_price, dropOff } = req.body;
 
+
   if (
     !driverId || 
     !bookingId || 
@@ -910,6 +911,8 @@ export const end_Ride = async (req: Request, res: Response) => {
   
   const { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } = dropOff;
   
+
+  const waiting_time_in_minutes = parseTimeToMinutes(wating_time);
 
   try {
     const settings = await SettingSchemaModel.findOne();
@@ -951,7 +954,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     }
 
     // const time = new Date();
-    const { original, final: totalFare } = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
+    const { original, final: totalFare } = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, waiting_time_in_minutes);
 
     const discounted_price_calaute = totalFare - discount_price;
 
@@ -1140,5 +1143,102 @@ function CalculateTaxiTotalFarePrice(flag_price: number, distance_price_per_mete
   return {
     original: totalfareAfterparas,
     final: totalFare,
+  };
+}
+
+function parseTimeToMinutes(timeStr: string): number {
+  const [minutesStr, secondsStr] = timeStr.split(":");
+  const minutes = parseInt(minutesStr, 10);
+  const seconds = parseInt(secondsStr, 10);
+  const totalMinutes = minutes + seconds / 60;
+  return parseFloat(totalMinutes.toFixed(2)); // optional: limit to 2 decimals
+}
+
+
+export const CalculateTotalFareApi = async(req:Request, res:Response) =>{
+  const {distance, waiting_time_price_per_minutes} = req.body;
+
+  if(!distance || !waiting_time_price_per_minutes){
+    res.status(400).json("distance and waiting time require!!");
+    return;
+  }
+
+  try{
+    const settings = await SettingSchemaModel.findOne();
+    if(!settings){
+      res.status(404).json({message:"No setting found!!"});
+      return;
+    }
+
+    const BASE_PRICE = settings.base_price;
+    console.log("BASE_PRICE ---> ", BASE_PRICE)
+    const DISTANCE_PRICE_PER_KM = settings.km_price;
+    console.log("DISTANCE_PRICE_PER_KM ---> ", DISTANCE_PRICE_PER_KM)
+    const WAITING_TIME_RATE_PER_MIN = settings.waiting_time_price_per_minutes;
+    console.log("WAITING_TIME_RATE_PER_MIN ---> ", WAITING_TIME_RATE_PER_MIN)
+
+
+    const { original, final: totalFare } = await CalculateTaxiTotalFarePrice12(BASE_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, waiting_time_price_per_minutes);
+
+    res.status(200).json({message:"Prices ---> ", original, totalFare });
+    return;
+  }
+  catch(error){
+    res.status(500).json({message:"Problem in calcuate the price!!"});
+    return;
+  }
+}
+
+
+
+function CalculateTaxiTotalFarePrice12(flag_price: number, distance_price_per_meter: number, waiting_time_price_per_seconds: number, distance: number, waitingTimeMin: number): { original: number, final: number } {
+  const distanceFare = distance * distance_price_per_meter;
+
+  console.log("distanceFare ---------> ", distanceFare)
+
+  const waitingTimeFare = waitingTimeMin * waiting_time_price_per_seconds;
+
+  console.log("waitingTimeFare ---------> ", waitingTimeFare)
+
+  const totalfare = flag_price + distanceFare + waitingTimeFare;
+
+  console.log("totalFare ---------> ", totalfare)
+
+  const totalfareAfterparas = parseFloat(totalfare.toFixed(2));
+  console.log("totalfareAfterparas ===> ", totalfareAfterparas)
+
+  const parts = totalfareAfterparas.toFixed(2).split(".");
+  console.log("parts ===> ", parts)
+
+  const beforeDecimal = parts[0];
+  console.log("beforeDecimal ===> ", beforeDecimal)
+  const decimal = parts[1]; // like "58"
+  console.log("decimal ===> ", decimal)
+
+  const firstDigit = decimal[0];
+  console.log("firstDigit ===> ", firstDigit)
+  const lastDigit = parseInt(decimal[1]);
+  console.log("lastDigit ===> ", lastDigit)
+
+  const newLastDigit = lastDigit % 5 === 0 ? lastDigit : lastDigit + (5 - (lastDigit % 5));
+  console.log("newLastDigit ===> ", newLastDigit)
+  const newDecimal = `${firstDigit}${newLastDigit === 10 ? '0' : newLastDigit}`;
+  console.log("newDecimal ===> ", newDecimal)
+
+  let roundedValue = parseFloat(`${beforeDecimal}.${newDecimal}`);
+  console.log("roundedValue ===> ", roundedValue)
+
+  // handle edge case when newLastDigit is 10
+  if (newLastDigit === 10) {
+    roundedValue = parseFloat((roundedValue + 0.1).toFixed(2));
+  }
+
+  const totalfareAfterparasfloat =  parseFloat(roundedValue.toFixed(2));
+
+  const totalFare = totalfareAfterparasfloat.toFixed(2);
+
+  return {
+    original: totalfareAfterparas,
+    final: Number(totalFare),
   };
 }

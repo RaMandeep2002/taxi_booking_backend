@@ -1,11 +1,12 @@
 import express from "express";
 import {
+  CalculateTotalFareApi,
   cancelRide,
   cofirmRide,
   deteleallShiftsHistory,
   end_Ride,
-  end_Ride_with_dropTime,
-  getAllVehicles,
+    end_Ride_with_dropTime,
+    getAllVehicles,
   // endRide,
   start_Ride,
   start_Ride_with_pickuptime,
@@ -96,6 +97,8 @@ router.patch(
   authorize(["driver"]),
   updateDriverStatus,
 );
+
+router.post("/CalculateTotalFareApi",CalculateTotalFareApi)
 
 router.post("/confirm-ride/:driverId", authenticate, authorize(["driver"]), cofirmRide);
 router.post("/cancel-ride/:driverId", authenticate, authorize(["driver"]), cancelRide);
