@@ -912,7 +912,7 @@ export const end_Ride = async (req: Request, res: Response) => {
   const { latitude: dropLatitude, longitude: dropLongitude, address: dropAddress } = dropOff;
   
 
-  const waiting_time_in_minutes = parseTimeToMinutes(wating_time);
+  const waiting_time_formated = secondsToHHMMSS(wating_time);
 
   try {
     const settings = await SettingSchemaModel.findOne();
@@ -954,7 +954,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     }
 
     // const time = new Date();
-    const { original, final: totalFare } = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, waiting_time_in_minutes);
+    const { original, final: totalFare } = await CalculateTaxiTotalFarePrice(FLAG_PRICE,DISTANCE_PRICE_PER_KM,WAITING_TIME_RATE_PER_MIN, distance, wating_time);
 
     const discounted_price_calaute = totalFare - discount_price;
 
@@ -970,6 +970,7 @@ export const end_Ride = async (req: Request, res: Response) => {
     booking.discount_price += discount_price;
     booking.after_discount_price += discounted_price_calaute;
     booking.wating_time += wating_time;
+    booking.wating_time_formated = waiting_time_formated;
     booking.dropdownDate =  new Date().toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
     booking.dropdownTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
     booking.dropOff = { 
@@ -1101,7 +1102,7 @@ function CalculateTaxiTotalFarePrice(flag_price: number, distance_price_per_mete
 
   console.log("distanceFare ---------> ", distanceFare)
 
-  const waitingTimeFare = waitingTimeMin * waiting_time_price_per_seconds;
+  const waitingTimeFare = waitingTimeMin * waiting_time_price_per_seconds / 60;
 
   console.log("waitingTimeFare ---------> ", waitingTimeFare)
 
@@ -1146,16 +1147,18 @@ function CalculateTaxiTotalFarePrice(flag_price: number, distance_price_per_mete
   };
 }
 
-function parseTimeToMinutes(timeStr: string): number {
-  if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":")) {
-    return 0; // fallback to 0 if input is invalid
-  }
-  const [minutesStr, secondsStr] = timeStr.split(":");
-  const minutes = parseInt(minutesStr, 10);
-  const seconds = parseInt(secondsStr, 10);
-  const totalMinutes = minutes + seconds / 60;
-  return parseFloat(totalMinutes.toFixed(2)); // optional: limit to 2 decimals
-}
+// function parseTimeToMinutes(timeStr: string): number {
+//   if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":")) {
+//     return 0; // fallback to 0 if input is invalid
+//   }
+//   const [minutesStr, secondsStr] = timeStr.split(":");
+//   const minutes = parseInt(minutesStr, 10);
+//   console.log("minutes ----> ", minutes);
+//   const seconds = parseInt(secondsStr, 10);
+//   console.log("seconds ----> ", seconds);
+//   const totalMinutes = minutes + seconds / 60;
+//   return parseFloat(totalMinutes.toFixed(2)); // optional: limit to 2 decimals
+// }
 
 
 export const CalculateTotalFareApi = async(req:Request, res:Response) =>{
@@ -1199,7 +1202,7 @@ function CalculateTaxiTotalFarePrice12(flag_price: number, distance_price_per_me
 
   console.log("distanceFare ---------> ", distanceFare)
 
-  const waitingTimeFare = waitingTimeMin * waiting_time_price_per_seconds;
+  const waitingTimeFare = waitingTimeMin * waiting_time_price_per_seconds /60;
 
   console.log("waitingTimeFare ---------> ", waitingTimeFare)
 
@@ -1244,4 +1247,16 @@ function CalculateTaxiTotalFarePrice12(flag_price: number, distance_price_per_me
     original: totalfareAfterparas,
     final: Number(totalFare),
   };
+}
+
+
+
+function secondsToHHMMSS(totalSeconds: number): string {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+
+  const pad = (num: number) => String(num).padStart(2, '0');
+
+  return `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
 }
