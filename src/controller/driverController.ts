@@ -1147,6 +1147,9 @@ function CalculateTaxiTotalFarePrice(flag_price: number, distance_price_per_mete
 }
 
 function parseTimeToMinutes(timeStr: string): number {
+  if (!timeStr || typeof timeStr !== "string" || !timeStr.includes(":")) {
+    return 0; // fallback to 0 if input is invalid
+  }
   const [minutesStr, secondsStr] = timeStr.split(":");
   const minutes = parseInt(minutesStr, 10);
   const seconds = parseInt(secondsStr, 10);
