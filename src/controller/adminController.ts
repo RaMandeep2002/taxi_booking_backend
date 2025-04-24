@@ -1001,7 +1001,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       },
       {
         $sort: {
-          createdAt: 1  // Then sort by pickup time descending
+          pickuptime: 1  // Then sort by pickup time descending
         }
       }
     ])
