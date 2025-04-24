@@ -714,7 +714,7 @@ export const start_Ride = async (req: Request, res: Response) => {
         hour12: true,
         timeZone: 'Asia/Kolkata', // ✅ IST
       }),
-      pickupDate: new Date().toLocaleDateString('en-IN', {
+      pickupDate: new Date().toLocaleDateString('en-US', {
         month: '2-digit',
         day: '2-digit',
         year: 'numeric',
@@ -987,7 +987,7 @@ export const end_Ride = async (req: Request, res: Response) => {
       hour12: true,
       timeZone: 'Asia/Kolkata', // ✅ IST
     }),
-    booking.dropdownDate= new Date().toLocaleDateString('en-IN', {
+    booking.dropdownDate= new Date().toLocaleDateString('en-US', {
       month: '2-digit',
       day: '2-digit',
       year: 'numeric',
