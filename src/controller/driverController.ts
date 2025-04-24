@@ -712,13 +712,13 @@ export const start_Ride = async (req: Request, res: Response) => {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
-        timeZone: 'Asia/Vancouver', // ✅ IST
+        timeZone: 'Canada/Vancouver', // ✅ IST
       }),
       pickupDate: new Date().toLocaleDateString('en-US', {
         month: '2-digit',
         day: '2-digit',
         year: 'numeric',
-        timeZone: 'Asia/Vancouver', // ✅ IST
+        timeZone: 'Canada/Vancouver', // ✅ IST
       }),
       pickupTimeFormatted: now.toISOString(),
       pickupMonth: now.toLocaleString('default', { month: 'long' }),
@@ -985,13 +985,13 @@ export const end_Ride = async (req: Request, res: Response) => {
       hour: 'numeric',
       minute: '2-digit',
       hour12: true,
-      timeZone: 'Asia/Vancouver', // ✅ IST
+      timeZone: 'Canada/Vancouver', // ✅ IST
     }),
     booking.dropdownDate= new Date().toLocaleDateString('en-US', {
       month: '2-digit',
       day: '2-digit',
       year: 'numeric',
-      timeZone: 'Asia/Vancouver', // ✅ IST
+      timeZone: 'Canada/Vancouver', // ✅ IST
     }),
     booking.dropOff = { 
       latitude: dropLatitude,
