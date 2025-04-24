@@ -708,8 +708,18 @@ export const start_Ride = async (req: Request, res: Response) => {
         longitude: null,
         address: null
       },
-      pickuptime: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
-      pickupDate: new Date().toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'}),
+      pickuptime:new Date().toLocaleTimeString('en-IN', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Asia/Kolkata', // ✅ IST
+      }),
+      pickupDate: new Date().toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        timeZone: 'Asia/Kolkata', // ✅ IST
+      }),
       pickupTimeFormatted: now.toISOString(),
       pickupMonth: now.toLocaleString('default', { month: 'long' }),
       pickupWeek: Math.ceil(now.getDate() / 7),
@@ -971,8 +981,18 @@ export const end_Ride = async (req: Request, res: Response) => {
     booking.after_discount_price += discounted_price_calaute;
     booking.wating_time += wating_time;
     booking.wating_time_formated = waiting_time_formated;
-    booking.dropdownDate =  new Date().toLocaleDateString('en-US', {month: '2-digit', day: '2-digit', year: 'numeric'});
-    booking.dropdownTime = new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    booking.dropdownTime=new Date().toLocaleTimeString('en-IN', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'Asia/Kolkata', // ✅ IST
+    }),
+    booking.dropdownDate= new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      timeZone: 'Asia/Kolkata', // ✅ IST
+    }),
     booking.dropOff = { 
       latitude: dropLatitude,
       longitude: dropLongitude,
