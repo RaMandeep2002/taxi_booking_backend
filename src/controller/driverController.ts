@@ -968,7 +968,7 @@ export const end_Ride = async (req: Request, res: Response) => {
 
     const discounted_price_calaute = totalFare - discount_price;
 
-    activeShift.totalEarnings += booking.fareAmount; // Assuming fareAmount is the earnings for this trip
+    activeShift.totalEarnings += booking.totalFare; // Assuming fareAmount is the earnings for this trip
     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
 
     booking.status = "completed";

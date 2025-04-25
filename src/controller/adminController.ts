@@ -938,18 +938,13 @@ const parseDate = (dateStr: string): Date => {
 // };
 
 
-
-
-
 export const getBookingdeteails = async (req: Request, res: Response) => {
-
   try {
-    // console.log("enter ================>");
-    // console.log("Booking Id ===> ", bookingId);
     const bookings = await BookingModels.aggregate([
+      // Join with Driver collection
       {
         $lookup: {
-          from: "drivers", // Reference to the Driver collection
+          from: "drivers",
           localField: "driver",
           foreignField: "_id",
           as: "driver",
@@ -961,13 +956,24 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           preserveNullAndEmptyArrays: true,
         },
       },
+
+      // Join with Vehicle collection using driver's vehicle
       {
         $lookup: {
           from: "vehicles",
-          localField: "driver.vehicle",
-          foreignField: "_id",
-          as: "driver.vehicles"
-        }
+          let: { vehicleId: "$driver.vehicle" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $eq: ["$_id", "$$vehicleId"],
+                },
+              },
+            },
+            { $limit: 1 },
+          ],
+          as: "driver.vehicles",
+        },
       },
       {
         $unwind: {
@@ -975,9 +981,11 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           preserveNullAndEmptyArrays: true,
         },
       },
+
+      // Select only necessary fields
       {
         $project: {
-          bookingId:1,
+          bookingId: 1,
           pickup: 1,
           dropOff: 1,
           pickuptime: 1,
@@ -987,39 +995,55 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           pickupWeek: 1,
           dropdownDate: 1,
           dropdownTime: 1,
-          wating_time:1,
+          wating_time: 1,
+          wating_time_formated: 1,
           distance: 1,
           totalFare: 1,
           paymentStatus: 1,
           status: 1,
-          // Driver details
           "driver.drivername": 1,
-          //vehicle details
           "driver.vehicles.company": 1,
           "driver.vehicles.vehicleModel": 1,
         },
       },
+
+      // Sort by latest bookings
       {
         $sort: {
-          pickuptime: -1  // Then sort by pickup time descending
-        }
-      }
-    ])
+          pickuptime: -1,
+        },
+      },
 
+      // Deduplicate based on bookingId
+      {
+        $group: {
+          _id: "$bookingId",
+          doc: { $first: "$$ROOT" },
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: "$doc",
+        },
+      },
+    ]);
 
-    if (!bookings || !bookings?.length) {
-      res.status(404).json({ message: "no booking found!!" });
+    if (!bookings || !bookings.length) {
+       res.status(404).json({ message: "No booking found!" });
+       return;
     }
 
-    console.log("Bookings ==> ", bookings);
-
-
-    res.status(200).json({ message: "Bookings data ===> ", bookings: bookings, total: bookings.length })
+    res.status(200).json({
+      message: "Bookings fetched successfully",
+      bookings: bookings,
+      total: bookings.length,
+    });
+  } catch (error) {
+    console.error("Error fetching bookings: ", error);
+    res.status(500).json({ message: "Error fetching the booking" });
   }
-  catch (error) {
-    res.status(500).json({ message: "Error to fetching the booking" });
-  }
-}
+};
+
 
 
 export const setting = async (req: Request, res: Response) => {
