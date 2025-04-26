@@ -1,6 +1,10 @@
 import dotenv from "dotenv";
 import express, { NextFunction, Request, Response } from "express";
 dotenv.config();
+
+
+import "./cron/scheduler";
+
 import morgan from "morgan";
 import cors from "cors";
 

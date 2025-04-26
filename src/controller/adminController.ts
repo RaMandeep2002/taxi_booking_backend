@@ -264,7 +264,7 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
 export const getDriverDetails = async (req: Request, res: Response) => {
   try {
     const drivers = await Driver.find().lean(); // Using lean() for faster query
-    
+
     res.status(200).json({
       success: true,
       message: "Drivers fetched successfully",
@@ -303,8 +303,8 @@ export const upadateDriver = async (req: Request, res: Response) => {
     console.log("Updated Driver --------> ", updatedDriver);
 
     await User.findOneAndUpdate(
-      {email:oldEmail},
-      {$set:{name:drivername, email}}
+      { email: oldEmail },
+      { $set: { name: drivername, email } }
     );
 
     res
@@ -317,31 +317,31 @@ export const upadateDriver = async (req: Request, res: Response) => {
 export const deleteDriver = async (req: Request, res: Response) => {
   const { driverId } = req.params;
 
-  if(!driverId){
-    res.status(400).json({message:"DriverId is Invaild!!"});
+  if (!driverId) {
+    res.status(400).json({ message: "DriverId is Invaild!!" });
     return;
   }
 
   try {
-    const originalDriver = await Driver.findOne({driverId});
+    const originalDriver = await Driver.findOne({ driverId });
     console.log("originalDriver -----> ", originalDriver);
-    if(!originalDriver){
-      res.status(404).json({message:"Driver not found!!"});
+    if (!originalDriver) {
+      res.status(404).json({ message: "Driver not found!!" });
       return;
     }
 
     const emailwhichtobedeleted = originalDriver.email;
-    console.log("emailwhichtobedeleted  -----> ", emailwhichtobedeleted );
+    console.log("emailwhichtobedeleted  -----> ", emailwhichtobedeleted);
 
     const deleteDriver = await Driver.findOneAndDelete({ driverId });
-    console.log("deleteDriver  -----> ", deleteDriver );
+    console.log("deleteDriver  -----> ", deleteDriver);
 
     if (!deleteDriver) {
       res.status(404).json({ message: "Driver not found" });
       return;
     }
 
-    await User.findOneAndDelete({email: emailwhichtobedeleted});
+    await User.findOneAndDelete({ email: emailwhichtobedeleted });
 
     res.status(200).json({ message: "Driver Deleted Successfully" });
   } catch (error: any) {
@@ -474,7 +474,7 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
     return;
   }
 
-  const { company, vehicleModel, year,vehicle_plate_number } = validationResult.data;
+  const { company, vehicleModel, year, vehicle_plate_number } = validationResult.data;
 
   try {
     const { registrationNumber } = generateRandomRegistrationNumber();
@@ -485,7 +485,7 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
       vehicleModel,
       year,
       vehicle_plate_number,
-      isShared: true, 
+      isShared: true,
     });
 
     const savedVehicle = await newVehicle.save();
@@ -629,8 +629,8 @@ export const removeVehicle = async (req: Request, res: Response) => {
   const { registrationNumber } = req.params;
 
 
-  if(!registrationNumber){
-    res.status(400).json({message:"DriverId is Invaild!!"});
+  if (!registrationNumber) {
+    res.status(400).json({ message: "DriverId is Invaild!!" });
     return;
   }
 
@@ -684,7 +684,7 @@ export const deleteBookingdata = async (req: Request, res: Response) => {
 export const gettingReport = async (req: Request, res: Response) => {
   try {
     console.log("Enter");
-    
+
     // Decode query params
     const rawFromDate = req.query.fromDate as string;
     const rawToDate = req.query.toDate as string;
@@ -693,7 +693,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     const company = req.query.company as string;
 
     console.log("rawFromDate -----> ", rawFromDate)
-    console.log("rawToDate -----> ", rawToDate) 
+    console.log("rawToDate -----> ", rawToDate)
     console.log("pickup -----> ", pickup)
     console.log("drivername -----> ", drivername)
     console.log("company -----> ", company)
@@ -790,20 +790,20 @@ export const gettingReport = async (req: Request, res: Response) => {
 
     bookings.forEach((booking) => {
       csvStream.write({
-        Booking_ID: booking.bookingId,
-        PICKUP_DATE: booking.pickupDate,
-        PICKUP_TIME: booking.pickuptime,
-        PICKUP_MONTH: booking.pickupMonth,
-        PICKUP_WEEK: booking.pickupWeek,
-        ARRIVED: booking.arrived,
-        CONTACT: booking.driver?.phoneNumber || "N/A",
-        FINISH_DATE: booking.dropdownDate,
-        FINISH_TIME: booking.dropdownTime,
-        CUSTOMER_PHONE: booking.phoneNumber,
-        ADDRESS: booking.pickup?.address || "N/A",
-        VEHICLE: booking.driver?.vehicles?.company || "N/A",
-        VEHICLE_Number: booking.driver?.vehicles?.vehicle_plate_number || "N/A",
-        METER: booking.distance,
+        "Booking ID": booking.bookingId,
+        "Pickup Date": booking.pickupDate,
+        "Pickup Time": booking.pickuptime,
+        "Pickup Month": booking.pickupMonth,
+        "Pickup Week": booking.pickupWeek,
+        "Arrived": booking.arrived,
+        "Contact": booking.driver?.phoneNumber || "N/A",
+        "Finish Date": booking.dropdownDate,
+        "Finish Time": booking.dropdownTime,
+        "Customer Phone": booking.phoneNumber,
+        "Address": booking.pickup?.address || "N/A",
+        "Vehicle": booking.driver?.vehicles?.company || "N/A",
+        "Vehicle Number": booking.driver?.vehicles?.vehicle_plate_number || "N/A",
+        "Meter": booking.distance,
       });
     });
 
@@ -1029,8 +1029,8 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
     ]);
 
     if (!bookings || !bookings.length) {
-       res.status(404).json({ message: "No booking found!" });
-       return;
+      res.status(404).json({ message: "No booking found!" });
+      return;
     }
 
     res.status(200).json({
