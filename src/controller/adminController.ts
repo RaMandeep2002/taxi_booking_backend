@@ -1010,7 +1010,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       // Sort by latest bookings
       {
         $sort: {
-          pickuptime: -1,
+          pickuptime: 1,
         },
       },
 
