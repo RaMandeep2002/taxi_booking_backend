@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import User from "../models/User";
 import { Vehicle } from "../models/VehicleModel";
 import { Driver } from "../models/DriverModel";
-import ScheduleRide from "../models/ScheduleRideModel";
+// import ScheduleRide from "../models/ScheduleRideModel";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import BookingModels from "../models/BookingModels";
