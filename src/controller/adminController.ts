@@ -1,20 +1,21 @@
 import { Request, Response } from "express";
+import mongoose from "mongoose";
 import User from "../models/User";
 import { Vehicle } from "../models/VehicleModel";
 import { Driver } from "../models/DriverModel";
+import ScheduleRide from "../models/ScheduleRideModel";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import BookingModels from "../models/BookingModels";
-import mongoose from "mongoose";
 import { AuthRequest } from "../types/custom";
 import { Roles } from "../types/roles";
 import redisClinet from "../config/redis";
-import fs from "fs";
-import { format } from "fast-csv";
 import { DriverAddSchema, registerSharedVehicleSchema, registerVehicleSchema, updateDriverAddSchema, updateVehicleSchema } from "../schema/DriverSchema";
 import { SettingSchemaModel } from "../models/SettingModels";
 import { SettingSchema } from "../schema/SettingSchema";
 import { Shift } from "../models/ShiftModel";
+import fs from "fs";
+import { format } from "fast-csv";
 
 const generatoRandomCredentials = () => {
   const id = crypto.randomBytes(4).toString("hex");
@@ -1011,6 +1012,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       {
         $sort: {
           pickuptime: 1,
+          pickupDate: 1,
         },
       },
 
@@ -1209,3 +1211,81 @@ export const getAllShifts12 = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Something went wrong!" });
   }
 };
+
+
+
+// export const scheduleRide = async (req: Request, res: Response) => {
+//   // Destructure pickup and dropoff separately to avoid variable redeclaration
+//   const { 
+//     driverId, 
+//     vehicle_plate_number, 
+//     pickup, 
+//     dropoff, 
+//     time, 
+//     date 
+//   } = req.body;
+
+//   // Validate required fields for pickup and dropoff
+//   if (
+//     !driverId ||
+//     !vehicle_plate_number ||
+//     !pickup ||
+//     pickup.latitude === undefined ||
+//     pickup.longitude === undefined ||
+//     !pickup.address ||
+//     !dropoff ||
+//     dropoff.latitude === undefined ||
+//     dropoff.longitude === undefined ||
+//     !dropoff.address ||
+//     !time ||
+//     !date
+//   ) {
+//     res.status(400).json({ message: "DriverId, vehicle number, pickup, dropoff, time, and date are required!" });
+//     return;
+//   }
+
+//   try {
+//     // Check if driver exists
+//     const driver = await Driver.findOne({ driverId });
+//     if (!driver) {
+//       res.status(404).json({ message: "Driver not found!" });
+//       return;
+//     }
+
+//     // Check if vehicle exists
+//     const vehicle = await Vehicle.findOne({ vehicle_plate_number });
+//     if (!vehicle) {
+//       res.status(404).json({ message: "Vehicle not found!" });
+//       return;
+//     }
+
+//     // Create scheduled ride
+//     const scheduledRide = new ScheduleRide({
+//       driverId,
+//       vehicle_plate_number,
+//       pickup: {
+//         latitude: pickup.latitude,
+//         longitude: pickup.longitude,
+//         address: pickup.address
+//       },
+//       dropoff: {
+//         latitude: dropoff.latitude,
+//         longitude: dropoff.longitude,
+//         address: dropoff.address
+//       },
+//       pickuptime: time,
+//       pickupDate: date,
+//       status: "schedule",
+//     });
+
+//     await scheduledRide.save();
+
+//     res.status(201).json({
+//       message: "Ride scheduled successfully!",
+//       scheduledRide,
+//     });
+//   } catch (error) {
+//     console.error("Error scheduling ride:", error);
+//     res.status(500).json({ message: "Something went wrong while scheduling the ride." });
+//   }
+// };
