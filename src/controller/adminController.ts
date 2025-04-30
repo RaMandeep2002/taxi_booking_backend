@@ -350,6 +350,93 @@ export const deleteDriver = async (req: Request, res: Response) => {
   }
 };
 
+export const disableDriver = async(req:Request, res:Response) =>{
+  const {driverId} = req.params;
+
+  console.log("driver id ---> ", driverId);
+
+  if(!driverId){
+    res.status(400).json({message:"DriverId is required"});
+    return;
+  }
+
+  try{
+    const driver = await Driver.findOne({driverId});
+
+    if(!driver){
+      res.status(404).json({message:"No Driver found"});
+      return;
+    }
+
+    const email = driver.email;
+    console.log("driver_email ----> ", email);
+
+    const user = await User.findOne({email});
+
+    console.log("user ----> ", user);
+
+    if(!user){
+      res.status(404).json({message:"User not found!!"});
+      return;
+    }
+
+    const emailtodisable = user.email;
+
+    await Driver.updateOne({driverId}, {$set:{isActive:false}});
+
+    await User.updateOne({email:emailtodisable}, {$set:{status:false}});
+
+    res.status(200).json({message:"Driver Disble successfully!!"});
+  }
+  catch(error){
+    res.status(500).json({message:"Somthing went wrong!!", error});
+  }
+}
+
+
+export const activateDriver = async(req:Request, res:Response) =>{
+  const {driverId} = req.params;
+
+  console.log("driver id ---> ", driverId);
+
+  if(!driverId){
+    res.status(400).json({message:"DriverId is required"});
+    return;
+  }
+
+  try{
+    const driver = await Driver.findOne({driverId});
+
+    if(!driver){
+      res.status(404).json({message:"No Driver found"});
+      return;
+    }
+
+    const email = driver.email;
+    console.log("driver_email ----> ", email);
+
+    const user = await User.findOne({email});
+
+    console.log("user ----> ", user);
+
+    if(!user){
+      res.status(404).json({message:"User not found!!"});
+      return;
+    }
+
+    const emailtodisable = user.email;
+
+    await Driver.updateOne({driverId}, {$set:{isActive:true}});
+
+    await User.updateOne({email:emailtodisable}, {$set:{status:true}});
+
+    res.status(200).json({message:"Driver Activate successfully!!"});
+  }
+  catch(error){
+    res.status(500).json({message:"Somthing went wrong!!", error});
+  }
+}
+
 
 export const registerVehiclewithparams = async (req: Request, res: Response) => {
   const { driverId } = req.params;

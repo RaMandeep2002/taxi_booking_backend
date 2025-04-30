@@ -12,6 +12,7 @@ export interface IUser extends Document {
   email: string;
   password: string;
   role: Roles;
+  status:boolean;
 }
 
 const UserSchema: Schema = new Schema({
@@ -33,6 +34,10 @@ const UserSchema: Schema = new Schema({
     default: Roles.Customer,
     required: true,
   },
+  status:{
+    type:Boolean,
+    default:true,
+  }
 });
 
 export default mongoose.model<IUser>("User", UserSchema);

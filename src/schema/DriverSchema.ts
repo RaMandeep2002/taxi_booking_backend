@@ -15,10 +15,10 @@ export const DriverAddSchema = z.object({
     // }, { message: "Invalid phone number. Must be a valid Indian phone number starting with +91, 91, 0 or just 10 digits" }),
     phoneNumber: z
     .string()
-    .min(10, { message: "Phone number must be at least 10 digits" })
-    .refine((value) => canadianPhoneRegex.test(value), {
-      message: "Invalid Canadian phone number",
-    }),
+    .min(10, { message: "Phone number must be at least 10 digits" }),
+    // .refine((value) => canadianPhoneRegex.test(value), {
+    //   message: "Invalid Canadian phone number",
+    // }),
     password: z.string()
 })
 
@@ -33,10 +33,10 @@ export const updateDriverAddSchema = z.object({
     // }, { message: "Invalid phone number. Must be a valid Indian phone number starting with +91, 91, 0 or just 10 digits" }),
     phoneNumber: z
     .string()
-    .min(10, { message: "Phone number must be at least 10 digits" })
-    .refine((value) => canadianPhoneRegex.test(value), {
-      message: "Invalid Canadian phone number",
-    }),
+    .min(10, { message: "Phone number must be at least 10 digits" }),
+    // .refine((value) => canadianPhoneRegex.test(value), {
+    //   message: "Invalid Canadian phone number",
+    // }),
     password: z.string().optional()
 })
 // make, vehicleModel, year, status

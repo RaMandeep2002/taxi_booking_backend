@@ -25,6 +25,8 @@ import {
   getAllShifts,
   getAllShifts12,
   updateSettings,
+  disableDriver,
+  activateDriver,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -50,6 +52,18 @@ router.delete(
   authenticate,
   authorize(["admin"]),
   deleteDriver,
+);
+router.put(
+  "/disable-Driver/:driverId",
+  authenticate,
+  authorize(["admin"]),
+  disableDriver,
+);
+router.put(
+  "/activate-Driver/:driverId",
+  authenticate,
+  authorize(["admin"]),
+  activateDriver,
 );
 
 router.post(

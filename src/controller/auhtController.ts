@@ -35,14 +35,26 @@ export const loginuser = async (req: Request, res: Response) => {
   if(!validationResult.success){
     res.status(400).json({errors: validationResult.error.errors});
     return;
-  }
+  } 
 
   const { email, password } = validationResult.data;
 
   try {
     const user: IUser | null = await User.findOne({ email });
+
+    console.log("User ----> ", user);
+
+    // if(!user.status){
+    //   res.status(403).json({message:"Your account is disable from admin!!"});
+    // }
+
+
     if (!user) {
       res.status(404).json({ message: "User not found" });
+      return;
+    }
+    else if(!user.status){
+      res.status(403).json({message:"You account is disable from the admin side!"});
       return;
     }
 

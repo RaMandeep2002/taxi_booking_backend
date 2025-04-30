@@ -15,6 +15,7 @@ export interface IDriver extends Document {
   };
   status: "available" | "busy" | "not working";
   shifts: Types.ObjectId[];
+  isActive : boolean;
 }
 
 // Driver Schema
@@ -72,6 +73,7 @@ const DriverSchema: Schema = new Schema(
         ref: "Shift",
       },
     ],
+    isActive : {type:Boolean, default:true},
   },
   { timestamps: true }
 );
