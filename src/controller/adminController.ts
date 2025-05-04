@@ -16,6 +16,7 @@ import { SettingSchema } from "../schema/SettingSchema";
 import { Shift } from "../models/ShiftModel";
 import fs from "fs";
 import { format } from "fast-csv";
+import { parse } from "date-fns";
 
 const generatoRandomCredentials = () => {
   const id = crypto.randomBytes(4).toString("hex");
@@ -350,90 +351,90 @@ export const deleteDriver = async (req: Request, res: Response) => {
   }
 };
 
-export const disableDriver = async(req:Request, res:Response) =>{
-  const {driverId} = req.params;
+export const disableDriver = async (req: Request, res: Response) => {
+  const { driverId } = req.params;
 
   console.log("driver id ---> ", driverId);
 
-  if(!driverId){
-    res.status(400).json({message:"DriverId is required"});
+  if (!driverId) {
+    res.status(400).json({ message: "DriverId is required" });
     return;
   }
 
-  try{
-    const driver = await Driver.findOne({driverId});
+  try {
+    const driver = await Driver.findOne({ driverId });
 
-    if(!driver){
-      res.status(404).json({message:"No Driver found"});
+    if (!driver) {
+      res.status(404).json({ message: "No Driver found" });
       return;
     }
 
     const email = driver.email;
     console.log("driver_email ----> ", email);
 
-    const user = await User.findOne({email});
+    const user = await User.findOne({ email });
 
     console.log("user ----> ", user);
 
-    if(!user){
-      res.status(404).json({message:"User not found!!"});
+    if (!user) {
+      res.status(404).json({ message: "User not found!!" });
       return;
     }
 
     const emailtodisable = user.email;
 
-    await Driver.updateOne({driverId}, {$set:{isActive:false}});
+    await Driver.updateOne({ driverId }, { $set: { isActive: false } });
 
-    await User.updateOne({email:emailtodisable}, {$set:{status:false}});
+    await User.updateOne({ email: emailtodisable }, { $set: { status: false } });
 
-    res.status(200).json({message:"Driver Disble successfully!!"});
+    res.status(200).json({ message: "Driver Disble successfully!!" });
   }
-  catch(error){
-    res.status(500).json({message:"Somthing went wrong!!", error});
+  catch (error) {
+    res.status(500).json({ message: "Somthing went wrong!!", error });
   }
 }
 
 
-export const activateDriver = async(req:Request, res:Response) =>{
-  const {driverId} = req.params;
+export const activateDriver = async (req: Request, res: Response) => {
+  const { driverId } = req.params;
 
   console.log("driver id ---> ", driverId);
 
-  if(!driverId){
-    res.status(400).json({message:"DriverId is required"});
+  if (!driverId) {
+    res.status(400).json({ message: "DriverId is required" });
     return;
   }
 
-  try{
-    const driver = await Driver.findOne({driverId});
+  try {
+    const driver = await Driver.findOne({ driverId });
 
-    if(!driver){
-      res.status(404).json({message:"No Driver found"});
+    if (!driver) {
+      res.status(404).json({ message: "No Driver found" });
       return;
     }
 
     const email = driver.email;
     console.log("driver_email ----> ", email);
 
-    const user = await User.findOne({email});
+    const user = await User.findOne({ email });
 
     console.log("user ----> ", user);
 
-    if(!user){
-      res.status(404).json({message:"User not found!!"});
+    if (!user) {
+      res.status(404).json({ message: "User not found!!" });
       return;
     }
 
     const emailtodisable = user.email;
 
-    await Driver.updateOne({driverId}, {$set:{isActive:true}});
+    await Driver.updateOne({ driverId }, { $set: { isActive: true } });
 
-    await User.updateOne({email:emailtodisable}, {$set:{status:true}});
+    await User.updateOne({ email: emailtodisable }, { $set: { status: true } });
 
-    res.status(200).json({message:"Driver Activate successfully!!"});
+    res.status(200).json({ message: "Driver Activate successfully!!" });
   }
-  catch(error){
-    res.status(500).json({message:"Somthing went wrong!!", error});
+  catch (error) {
+    res.status(500).json({ message: "Somthing went wrong!!", error });
   }
 }
 
@@ -1299,9 +1300,8 @@ export const getAllShifts12 = async (req: Request, res: Response) => {
   }
 };
 
-
-
 // export const scheduleRide = async (req: Request, res: Response) => {
+
 //   // Destructure pickup and dropoff separately to avoid variable redeclaration
 //   const { 
 //     driverId, 
@@ -1376,3 +1376,180 @@ export const getAllShifts12 = async (req: Request, res: Response) => {
 //     res.status(500).json({ message: "Something went wrong while scheduling the ride." });
 //   }
 // };
+
+
+export const getDriverWithAssignedVehicle = async (req: Request, res: Response) => {
+  try {
+    const shifts = await Shift.aggregate([
+      {
+        $lookup: {
+          from: "drivers", // Should match the actual collection name
+          localField: "driverId",
+          foreignField: "_id",
+          as: "driver"
+        }
+      },
+      { $unwind: "$driver" },
+
+      {
+        $lookup: {
+          from: "vehicles",
+          localField: "vehicleUsed",
+          foreignField: "_id",
+          as: "vehicle"
+        }
+      },
+      { $unwind: { path: "$vehicle", preserveNullAndEmptyArrays: true } },
+
+      {
+        $project: {
+          _id: 1,
+          driverId:1,
+          startDate: 1,
+          startTime: 1,
+          endDate: 1,
+          endTime: 1,
+          totalDuration: 1,
+          totalTrips: 1,
+          totalEarnings: 1,
+          totalDistance: 1,
+          isActive: 1,
+          createdAt: 1,
+          driver: {
+            _id: "$driver._id",
+            driverId: "$driver.driverId",
+            drivername: "$driver.drivername",
+            email: "$driver.email",
+            phoneNumber: "$driver.phoneNumber"
+          },
+          vehicle: {
+            _id: "$vehicle._id",
+            registrationNumber: "$vehicle.registrationNumber",
+            vehicleModel: "$vehicle.vehicleModel",
+            vehicle_plate_number: "$vehicle.vehicle_plate_number",
+            isAssigned: "$vehicle.isAssigned"
+          }
+        }
+      },
+      {
+        $sort: { createdAt: -1 }  
+      }
+    ]);
+
+    res.status(200).json({ shifts: shifts });
+  } catch (error) {
+    console.error("Error fetching shift assignments:", error);
+    res.status(500).json({ success: false, message: "Error fetching shifts", error });
+  }
+};
+
+
+
+export const stopshiftbyadmin = async(req:Request, res:Response) =>{
+  const {driverId} = req.params;
+  const {endTime, endDate} = req.body;
+
+  console.log("Endtime ---> ", endTime);
+  console.log("EndDate ---> ", endDate);
+
+  if (!endTime || !endDate) {
+    res.status(400).json({ message: "endTime and endDate are required" });
+    return;
+ }
+
+
+  if(!driverId){
+    res.status(400).json({message:"DriverId is required!!"});
+    return;
+  }
+
+  try{
+
+    const driver = await Driver.findOne({driverId });
+
+    if(!driver){
+      res.status(404).json({message:"Driver not found!!"});
+      return;
+    }
+
+    const activeBooking = await BookingModels.findOne({driver:driver._id, 
+      status:{$in:"ongoing"}
+    })
+
+    if(activeBooking){
+      res.status(400).json({message:"You cannot stop the shift while driver has an active ride in progress"});
+      return;
+    }
+
+    const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
+
+    if(!activeShift){
+      res.status(400).json({message:"No active shift found For the driver"})
+      return;
+    }
+    // const endDatenow = endDate || new Date().toLocaleDateString('en-US', {
+    //   month: '2-digit',
+    //   day: '2-digit',
+    //   year: 'numeric',
+    //   timeZone: 'America/Vancouver', // ✅ IST
+    // });
+    // const endTimenow = endTime || new Date().toLocaleTimeString('en-US', {
+    //   hour: 'numeric',
+    //   minute: '2-digit',
+    //   hour12: true,
+    //   timeZone: 'America/Vancouver', // ✅ IST
+    // });
+    console.log(`${activeShift.startDate} ${activeShift.startTime}`);
+
+    const start = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
+    console.log(`start ----- > ${start}`)
+    const end = parse(`${endDate} ${endTime}`, "MM/dd/yyyy hh:mma", new Date());
+    console.log(`end ----- > ${end}`)
+   
+
+    if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+      res.status(400).json({ message: "Invalid date/time format" });
+      return;
+   }
+
+   const durationMs = end.getTime() - start.getTime();
+   console.log(`durationMs ----- > ${durationMs}`)
+
+   if (durationMs < 0) {
+      res.status(400).json({ message: "End time must be after start time" });
+      return;
+   }
+
+   const hours = Math.floor(durationMs / (1000 * 60 * 60));
+   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+   const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+   activeShift.endTime = endTime;
+   activeShift.endDate = endDate;
+   activeShift.endTimeFormatted = end.toISOString();
+   activeShift.endMonth = end.toLocaleString('default', { month: 'long' });
+   activeShift.isActive = false;
+   activeShift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
+   activeShift.isStopedByAdmin = true;
+
+
+   const vehicle = await Vehicle.findById(activeShift.vehicleUsed);
+   console.log("vehicle --> ", vehicle)
+    if (vehicle) {
+      vehicle.isAssigned = false;
+      await vehicle.save();
+    }
+    console.log("vehicle --> ", vehicle)
+
+    await activeShift.save();
+    await driver.save();
+    res.status(200).json({
+      message: "Shift ended successfully",
+      shift: activeShift,
+      shiftDuration: activeShift.totalDuration,
+    });
+  }
+  catch(error){
+    res.status(500).json({message:"Something went wrong!!", error});
+  }
+}

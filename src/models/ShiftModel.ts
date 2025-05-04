@@ -20,13 +20,14 @@ export interface IShift extends Document {
   distance: number;
   bookings: Types.ObjectId[];
   isActive: boolean;
+  isStopedByAdmin : boolean;
 }
 
 // Shift Schema
 const ShiftSchema: Schema = new Schema(
   {
     driverId: {
-      type: String,
+      type: Schema.Types.ObjectId,
       ref: "Driver",
       required: true,
     },
@@ -95,6 +96,10 @@ const ShiftSchema: Schema = new Schema(
       type: Boolean,
       default: true,
     },
+    isStopedByAdmin:{
+      type:Boolean,
+      default:false,
+    }
   },
   { timestamps: true }
 );

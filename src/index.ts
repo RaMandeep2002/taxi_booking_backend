@@ -59,7 +59,7 @@ app.use("/api/driver", driverRoute);
 
 
 io.on("connection", (socket) =>{
-  console.log("Client connected: ", socket.id);
+  // console.log("Client connected: ", socket.id);
 
   const sentTime = () =>{
     const currentTime = new Date().toLocaleTimeString('en-US', {
@@ -74,7 +74,7 @@ io.on("connection", (socket) =>{
   const interval = setInterval(sentTime,1000);
 
   socket.on("disconnect", () =>{
-    console.log("Client disconnected", socket.id);
+    // console.log("Client disconnected", socket.id);
     clearInterval(interval);
   })
 })

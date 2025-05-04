@@ -100,11 +100,11 @@ export const startShift = async (req: Request, res: Response) => {
   console.log("enter");
   const token = req.headers.authorization?.split(" ")[1];
 
-  const driverId = getDriverId(token);
+  const driverIdIdentity= getDriverId(token);
   const { vehicleUsed } = req.body;
 
   try {
-    const driver = await Driver.findOne({ driverId });
+    const driver = await Driver.findOne({ driverId : driverIdIdentity});
     if (!driver) {
       res.status(404).json({ message: "Driver not found" });
       return;
@@ -113,7 +113,7 @@ export const startShift = async (req: Request, res: Response) => {
       res.status(400).json({ message: "Invalid vehicle" });
       return;
     }
-    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
 
     if (activeShift) {
       res.status(400).json({ message: "A shift is already active" });
@@ -126,7 +126,7 @@ export const startShift = async (req: Request, res: Response) => {
     const startWeek = Math.ceil(new Date().getDate() / 7);
     
     const newShift = {
-      driverId,
+      driverId: driver._id,
       startTime,
       startDate,
       startTimeFormatted,
@@ -154,11 +154,11 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
   console.log("enter");
   const token = req.headers.authorization?.split(" ")[1];
 
-  const driverId = getDriverId(token);
+  const driverIdIdentity= getDriverId(token);
   const { vehicleUsed, startTime, startDate } = req.body;
 
   try {
-    const driver = await Driver.findOne({ driverId });
+    const driver = await Driver.findOne({ driverId : driverIdIdentity});
     if (!driver) {
       res.status(404).json({ message: "Driver not found" });
       return;
@@ -180,6 +180,7 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
     }
 
 
+
     const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
     console.log("active shift ====> ", activeShift);
     if (activeShift) {
@@ -199,7 +200,7 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
     console.log("startWeek --------------> ", startWeek)
     
     const newShift = {
-      driverId,
+      driverId: driver._id,
       // activeShift._id,
       startTime: shiftStartTime,
       startDate: shiftStartDate,
@@ -212,6 +213,7 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
       totalTrips: 0,
       totalDistance: 0,
       isActive: true,
+      isStopedByAdmin:false,
     };
 
     vehicle.isAssigned = true;
@@ -233,10 +235,10 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
 export const stopShift = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
 
-  const driverId = getDriverId(token);
+    const driverIdIdentity= getDriverId(token);
 
   try {
-    const driver = await Driver.findOne({ driverId }).populate("shifts");
+    const driver = await Driver.findOne({ driverId : driverIdIdentity }).populate("shifts");
     if (!driver) {
       res.status(404).json({ message: "Not active shift found!" });
       return;
@@ -294,7 +296,7 @@ export const stopShift = async (req: Request, res: Response) => {
 
 export const stopShiftwithtime = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
-  const driverId = getDriverId(token);
+    const driverIdIdentity= getDriverId(token);
 
   const { endTime, endDate } = req.body;
 
@@ -304,13 +306,13 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
   }
 
   try {
-    const driver = await Driver.findOne({ driverId }).populate("shifts");
+    const driver = await Driver.findOne({ driverId : driverIdIdentity }).populate("shifts");
     if (!driver) {
        res.status(404).json({ message: "Driver not found!" });
        return;
     }
 
-    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
     if (!activeShift) {
       res.status(400).json({ message: "No active shift found!!" });
       return;
@@ -371,7 +373,7 @@ export const cofirmRide = async (req: Request, res: Response) => {
   const { bookingId } = req.body;
 
   try {
-    const driver = await Driver.findOne({ driverId });
+    const driver = await Driver.findOne({ driverId});
     if (!driver) {
       res.status(404).json({ message: "Driver not found!!" });
       return;
@@ -413,7 +415,7 @@ export const cofirmRide = async (req: Request, res: Response) => {
 //   }
 
 //   try {
-//     const driver = await Driver.findOne({ driverId });
+//     const driver = await Driver.findOne({ driverId : driverIdIdentity});
 //     if (!driver) {
 //       res.status(404).json({ message: "Driver not found!!" });
 //       return; 
@@ -482,7 +484,7 @@ export const cofirmRide = async (req: Request, res: Response) => {
 //     const BASE_FARE_PRICE = settings.basePrice;
 
 
-//     const driver = await Driver.findOne({ driverId });
+//     const driver = await Driver.findOne({ driverId : driverIdIdentity});
 //     if (!driver) {
 //       res.status(404).json({ message: "Driver not found!!" });
 //       return;
@@ -542,16 +544,16 @@ export const cofirmRide = async (req: Request, res: Response) => {
 export const cancelRide = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
 
-  const driverId = getDriverId(token);
+    const driverIdIdentity= getDriverId(token);
   const { bookingId } = req.body;
 
-  if (!driverId || !bookingId) {
+  if (!driverIdIdentity || !bookingId) {
     res.status(400).json({ message: "DriverId and bookingId is required!!" });
     return;
   }
 
   try {
-    const driver = await Driver.findOne({ driverId });
+    const driver = await Driver.findOne({ driverId : driverIdIdentity });
     if (!driver) {
       res.status(404).json({ message: "Driver not found!!" });
       return;
@@ -648,8 +650,8 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
 
 export const start_Ride = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
-  const driverId = getDriverId(token);
-  console.log("driverID -----> ", driverId)
+    const driverIdIdentity= getDriverId(token);
+  console.log("driverID -----> ", driverIdIdentity)
   const {
     customerName,
     phoneNumber,
@@ -658,7 +660,7 @@ export const start_Ride = async (req: Request, res: Response) => {
 
   // Validate required fields
   if (
-    !driverId ||
+    !driverIdIdentity ||
     latitude === undefined ||
     longitude === undefined ||
     !address
@@ -671,18 +673,20 @@ export const start_Ride = async (req: Request, res: Response) => {
 
   try {
     // Find driver
-    const driver = await Driver.findOne({ driverId });
+    const driver = await Driver.findOne({ driverId : driverIdIdentity });
     if (!driver) {
        res.status(404).json({ message: "Driver not found!" });
        return;
     }
 
     console.log("driver ------> ",driver);
+    // console.log("activeShift.isStopedByAdmin ------> ",activeShift.isStopedByAdmin);
+    
+    const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
+    console.log("activeShift ------> ",activeShift?.isStopedByAdmin);
 
-    // Find shift
-    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
     if (!activeShift) {
-       res.status(400).json({ message: "No active shift found" });
+       res.status(400).json({ message: "Shift ended by Admin , Please start new shift" });
        return;
     }
 
@@ -770,8 +774,8 @@ export const start_Ride = async (req: Request, res: Response) => {
 
 export const start_Ride_with_pickuptime = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
-  const driverId = getDriverId(token);
-  console.log("driverID -----> ", driverId)
+    const driverIdIdentity= getDriverId(token);
+  console.log("driverID -----> ", driverIdIdentity)
   const {
     customerName,
     phoneNumber,
@@ -784,7 +788,7 @@ export const start_Ride_with_pickuptime = async (req: Request, res: Response) =>
 
   // const shiftStartTime = startTime || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
   if (
-    !driverId ||
+    !driverIdIdentity ||
     latitude === undefined ||
     longitude === undefined ||
     !address
@@ -797,7 +801,7 @@ export const start_Ride_with_pickuptime = async (req: Request, res: Response) =>
 
   try {
     // Find driver
-    const driver = await Driver.findOne({ driverId });
+    const driver = await Driver.findOne({ driverId : driverIdIdentity });
     if (!driver) {
        res.status(404).json({ message: "Driver not found!" });
        return;
@@ -806,7 +810,7 @@ export const start_Ride_with_pickuptime = async (req: Request, res: Response) =>
     console.log("driver ------> ",driver);
 
     // Find shift
-    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    const activeShift = await Shift.findOne({  driverId: driver._id, isActive: true });
     if (!activeShift) {
        res.status(400).json({ message: "No active shift found" });
        return;
@@ -899,15 +903,15 @@ function generateBookingId(): string {
 export const end_Ride = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
 
-  const driverId = getDriverId(token);
-  console.log("driver Id ----> ", driverId)
+    const driverIdIdentity= getDriverId(token);
+  console.log("driver Id ----> ", driverIdIdentity)
   // waiting time 
   console.log(req.body);
   const { bookingId, distance, wating_time, discount_price, dropOff } = req.body;
 
 
   if (
-    !driverId || 
+    !driverIdIdentity || 
     !bookingId || 
     distance === undefined || 
     wating_time === undefined || 
@@ -935,13 +939,13 @@ export const end_Ride = async (req: Request, res: Response) => {
     const DISTANCE_PRICE_PER_KM = settings.km_price;
     const WAITING_TIME_RATE_PER_MIN = settings.waiting_time_price_per_minutes;
 
-    const driver = await Driver.findOne({ driverId });
+    const driver = await Driver.findOne({ driverId : driverIdIdentity});
     if (!driver) {
       res.status(404).json({ message: "Driver not found!!" });
       return;
     }
 
-    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
     if (!activeShift) {
       res.status(400).json({ message: "no active shift found" });
       return;
@@ -1016,14 +1020,14 @@ export const end_Ride = async (req: Request, res: Response) => {
 export const end_Ride_with_dropTime = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
 
-  const driverId = getDriverId(token);
-  console.log("driver Id ----> ", driverId)
+    const driverIdIdentity= getDriverId(token);
+  console.log("driver Id ----> ", driverIdIdentity)
   // waiting time 
   console.log(req.body);
   const { bookingId, distance, wating_time, discount_price,dropdownDate,dropdownTime, dropOff } = req.body;
 
   if (
-    !driverId || 
+    !driverIdIdentity || 
     !bookingId || 
     distance === undefined || 
     wating_time === undefined || 
@@ -1049,13 +1053,13 @@ export const end_Ride_with_dropTime = async (req: Request, res: Response) => {
     const DISTANCE_PRICE_PER_KM = settings.km_price;
     const WAITING_TIME_RATE_PER_MIN = settings.waiting_time_price_per_minutes;
 
-    const driver = await Driver.findOne({ driverId });
+    const driver = await Driver.findOne({ driverId : driverIdIdentity});
     if (!driver) {
       res.status(404).json({ message: "Driver not found!!" });
       return;
     }
 
-    const activeShift = await Shift.findOne({ driverId: driver.driverId, isActive: true });
+    const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
     if (!activeShift) {
       res.status(400).json({ message: "no active shift found" });
       return;

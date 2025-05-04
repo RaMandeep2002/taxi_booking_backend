@@ -27,6 +27,8 @@ import {
   updateSettings,
   disableDriver,
   activateDriver,
+  getDriverWithAssignedVehicle,
+  stopshiftbyadmin,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -64,6 +66,12 @@ router.put(
   authenticate,
   authorize(["admin"]),
   activateDriver,
+);
+router.put(
+  "/stopshiftbyadmin/:driverId",
+  authenticate,
+  authorize(["admin"]),
+  stopshiftbyadmin,
 );
 
 router.post(
@@ -133,5 +141,6 @@ router.put("/settings", authenticate, authorize(["admin"]), updateSettings);
 router.get("/settings", getsetting);
 
 router.get("/shiftsHistory",getAllShifts12)
+router.get("/getallshiftwithdriverandvehicle", getDriverWithAssignedVehicle)
 
 export default router;
