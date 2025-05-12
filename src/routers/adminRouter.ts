@@ -29,6 +29,7 @@ import {
   activateDriver,
   getDriverWithAssignedVehicle,
   stopshiftbyadmin,
+  scheduleRide,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -139,6 +140,8 @@ router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
 router.post("/settings", authenticate, authorize(["admin"]), setting);
 router.put("/settings", authenticate, authorize(["admin"]), updateSettings);
 router.get("/settings", getsetting);
+
+router.post("/scheduleRide", authenticate, authorize(["admin"]), scheduleRide);
 
 router.get("/shiftsHistory",getAllShifts12)
 router.get("/getallshiftwithdriverandvehicle", getDriverWithAssignedVehicle)

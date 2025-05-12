@@ -1,12 +1,10 @@
 import express from "express";
 import {
   CalculateTotalFareApi,
-  cancelRide,
-  cofirmRide,
   deteleallShiftsHistory,
   end_Ride,
-    end_Ride_with_dropTime,
-    getAllVehicles,
+  end_Ride_with_dropTime,
+  getAllVehicles,
   // endRide,
   start_Ride,
   start_Ride_with_pickuptime,
@@ -55,13 +53,13 @@ router.post(
   "/start-ride",
   authenticate,
   authorize(["driver"]),
-  start_Ride, 
+  start_Ride,
 );
 router.post(
   "/start-ride-with-pickuptime",
   authenticate,
   authorize(["driver"]),
-  start_Ride_with_pickuptime, 
+  start_Ride_with_pickuptime,
 );
 
 router.post(
@@ -98,11 +96,9 @@ router.patch(
   updateDriverStatus,
 );
 
-router.post("/CalculateTotalFareApi",CalculateTotalFareApi)
+router.post("/CalculateTotalFareApi", CalculateTotalFareApi)
 
-router.post("/confirm-ride/:driverId", authenticate, authorize(["driver"]), cofirmRide);
-router.post("/cancel-ride/:driverId", authenticate, authorize(["driver"]), cancelRide);
 router.delete("/delete-shifts/:driverId", authenticate, authorize(["driver"]), deteleallShiftsHistory)
-router.get("/getbooking",authenticate, authorize(["driver"]), getAllBookingRider);
+router.get("/getbooking", authenticate, authorize(["driver"]), getAllBookingRider);
 router.get("/settings", getsetting);
 export default router;

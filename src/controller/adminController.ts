@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import User from "../models/User";
 import { Vehicle } from "../models/VehicleModel";
 import { Driver } from "../models/DriverModel";
-// import ScheduleRide from "../models/ScheduleRideModel";
+import ScheduleRide from "../models/ScheduleRideModel";
 import crypto from "crypto";
 import bcrypt from "bcryptjs";
 import BookingModels from "../models/BookingModels";
@@ -17,6 +17,10 @@ import { Shift } from "../models/ShiftModel";
 import fs from "fs";
 import { format } from "fast-csv";
 import { parse } from "date-fns";
+import cron from "node-cron";
+import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
+
+const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
 const generatoRandomCredentials = () => {
   const id = crypto.randomBytes(4).toString("hex");
@@ -819,16 +823,16 @@ export const gettingReport = async (req: Request, res: Response) => {
       {
         $lookup: {
           from: "vehicles",
-          localField: "driver.vehicle",
+          localField: "vehicleUsed",
           foreignField: "_id",
-          as: "driver.vehicles"
+          as: "vehicleUsed"
         }
       },
-      { $unwind: { path: "$driver.vehicles", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$vehicleUsed", preserveNullAndEmptyArrays: true } },
       {
         $match: {
           ...(drivername ? { "driver.drivername": { $regex: drivername, $options: "i" } } : {}),
-          ...(company ? { "driver.vehicles.vehicle_plate_number": { $regex: company, $options: "i" } } : {}),
+          ...(company ? { "vehicleUsed.vehicle_plate_number": { $regex: company, $options: "i" } } : {}),
         }
       },
       {
@@ -856,12 +860,11 @@ export const gettingReport = async (req: Request, res: Response) => {
           "driver.phoneNumber": 1,
           "driver.status": 1,
           "driver.isOnline": 1,
-          "driver.vehicles._id": 1,
-          "driver.vehicles.registrationNumber": 1,
-          "driver.vehicles.company": 1,
-          "driver.vehicles.vehicleModel": 1,
-          "driver.vehicles.year": 1,
-          "driver.vehicles.vehicle_plate_number": 1,
+          "vehicleUsed.registrationNumber": 1,
+          "vehicleUsed.vehicleModel": 1,
+          "vehicleUsed.year": 1,
+          "vehicleUsed.company": 1,
+          "vehicleUsed.vehicle_plate_number": 1,
         },
       },
     ]);
@@ -890,8 +893,8 @@ export const gettingReport = async (req: Request, res: Response) => {
         "Finish Time": booking.dropdownTime,
         "Customer Phone": booking.phoneNumber,
         "Address": booking.pickup?.address || "N/A",
-        "Vehicle": booking.driver?.vehicles?.company || "N/A",
-        "Vehicle Number": booking.driver?.vehicles?.vehicle_plate_number || "N/A",
+        "Vehicle": booking.vehicleUsed.company || "N/A",
+        "Vehicle Number": booking.vehicleUsed.vehicle_plate_number || "N/A",
         "Meter": booking.distance,
       });
     });
@@ -919,112 +922,6 @@ const parseDate = (dateStr: string): Date => {
   const [month, day, year] = dateStr.split("/");
   return new Date(`${year}-${month}-${day}T00:00:00Z`);
 };
-// export const gettingReport = async (req: Request, res: Response) => {
-//   try {
-//     const bookings = await BookingModels.aggregate([
-//       {
-//         $lookup: {
-//           from: "drivers",
-//           localField: "driver",
-//           foreignField: "_id",
-//           as: "driver",
-//         },
-//       },
-//       { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
-//       {
-//         $lookup: {
-//           from: "vehicles",
-//           localField: "driver.vehicle",
-//           foreignField: "_id",
-//           as: "driver.vehicles"
-//         }
-//       },
-//       { $unwind: { path: "$driver.vehicles", preserveNullAndEmptyArrays: true } },
-//       {
-//         $project: {
-//           bookingId: 1,
-//           customerName: 1,
-//           phoneNumber: 1,
-//           pickup: 1,
-//           dropOff: 1,
-//           pickuptime: 1,
-//           pickupDate: 1,
-//           pickupTimeFormatted: 1,
-//           pickupMonth: 1,
-//           pickupWeek: 1,
-//           dropdownDate: 1,
-//           dropdownTime: 1,
-//           arrived: 1,
-//           distance: 1,
-//           totalFare: 1,
-//           paymentStatus: 1,
-//           status: 1,
-//           // Driver details
-//           "driver.driverId": 1,
-//           "driver.drivername": 1,
-//           "driver.email": 1,
-//           "driver.phoneNumber": 1,
-//           "driver.status": 1,
-//           "driver.isOnline": 1,
-//           // Vehicle details
-//           "driver.vehicles._id": 1,
-//           "driver.vehicles.registrationNumber": 1,
-//           "driver.vehicles.company": 1,
-//           "driver.vehicles.vehicleModel": 1,
-//           "driver.vehicles.year": 1,
-//           "driver.vehicles.vehicle_plate_number":1,
-//         },
-//       },
-//     ]);
-
-//     console.log("bookings ===> ", bookings)
-
-//     if (!bookings.length) {
-//       res.status(404).json({ message: "No bookings found" });
-//       return;
-//     }
-
-//     const filepath = "bookings.csv";
-//     const writeableStream = fs.createWriteStream(filepath);
-//     const csvStream = format({ headers: true });
-
-//     csvStream.pipe(writeableStream);
-
-//     bookings.forEach((booking) => {
-//       csvStream.write({
-//         Booking_ID: booking.bookingId,
-//         PICKUP_DATE: booking.pickupDate,
-//         PICKUP_TIME: booking.pickuptime,
-//         PICKUP_MONTH: booking.pickupMonth,
-//         PICKUP_WEEK: booking.pickupWeek,
-//         ARRIVED: booking.arrived,
-//         CONTACT: booking.driver.phoneNumber,
-//         FINISH_DATE: booking.dropdownDate,
-//         FINISH_TIME: booking.dropdownTime,
-//         CUSTOMER_PHONE: booking.phoneNumber,
-//         ADDRESS: booking.pickup?.address || "N/A",
-//         VEHICLE: booking.driver.vehicles?.company || "N/A",
-//         VEHICLE_Number: booking.driver.vehicles?.vehicle_plate_number || "N/A",
-//         METER:booking.distance,
-//       });
-//     });
-
-//     csvStream.end();
-
-//     writeableStream.on("finish", () => {
-//       res.download(filepath, "bookings.csv", (err) => {
-//         if (err) {
-//           console.error("Error sending file:", err);
-//           res.status(500).json({ message: "Error generating CSV file." });
-//         }
-//         fs.unlinkSync(filepath);
-//       });
-//     });
-//   } catch (error) {
-//     console.error(error);
-//     res.status(500).json({ message: "Internal server error" });
-//   }
-// };
 
 
 export const getBookingdeteails = async (req: Request, res: Response) => {
@@ -1300,82 +1197,98 @@ export const getAllShifts12 = async (req: Request, res: Response) => {
   }
 };
 
-// export const scheduleRide = async (req: Request, res: Response) => {
+export const scheduleRide = async (req: Request, res: Response) => {
 
-//   // Destructure pickup and dropoff separately to avoid variable redeclaration
-//   const { 
-//     driverId, 
-//     vehicle_plate_number, 
-//     pickup, 
-//     dropoff, 
-//     time, 
-//     date 
-//   } = req.body;
+  // Destructure pickup and dropoff separately to avoid variable redeclaration
+  const {
+    customerName,
+    customer_phone_number,
+    pickupAddress,
+    dropOffAddress,
+    time,
+    date
+  } = req.body;
 
-//   // Validate required fields for pickup and dropoff
-//   if (
-//     !driverId ||
-//     !vehicle_plate_number ||
-//     !pickup ||
-//     pickup.latitude === undefined ||
-//     pickup.longitude === undefined ||
-//     !pickup.address ||
-//     !dropoff ||
-//     dropoff.latitude === undefined ||
-//     dropoff.longitude === undefined ||
-//     !dropoff.address ||
-//     !time ||
-//     !date
-//   ) {
-//     res.status(400).json({ message: "DriverId, vehicle number, pickup, dropoff, time, and date are required!" });
-//     return;
-//   }
+  // Validate required fields for pickup and dropoff
+  if (
+    !time ||
+    !date
+  ) {
+    res.status(400).json({ message: "Time, and Date are required!" });
+    return;
+  }
 
-//   try {
-//     // Check if driver exists
-//     const driver = await Driver.findOne({ driverId });
-//     if (!driver) {
-//       res.status(404).json({ message: "Driver not found!" });
-//       return;
-//     }
+  try {
 
-//     // Check if vehicle exists
-//     const vehicle = await Vehicle.findOne({ vehicle_plate_number });
-//     if (!vehicle) {
-//       res.status(404).json({ message: "Vehicle not found!" });
-//       return;
-//     }
+    const scheduledRide = new ScheduleRide({
+      customerName,
+      customer_phone_number,
+      pickuptime: time,
+      pickupDate: date,
+      pickupAddress,
+      dropOffAddress,
+      status: "schedule",
+    });
 
-//     // Create scheduled ride
-//     const scheduledRide = new ScheduleRide({
-//       driverId,
-//       vehicle_plate_number,
-//       pickup: {
-//         latitude: pickup.latitude,
-//         longitude: pickup.longitude,
-//         address: pickup.address
-//       },
-//       dropoff: {
-//         latitude: dropoff.latitude,
-//         longitude: dropoff.longitude,
-//         address: dropoff.address
-//       },
-//       pickuptime: time,
-//       pickupDate: date,
-//       status: "schedule",
-//     });
+    await scheduledRide.save();
 
-//     await scheduledRide.save();
+    console.log("Date --> ", date);
+    console.log("time ---> ", time);
+    const dateTimeString = `${date} ${time}`;
+    console.log("dateTimeString ---> ", dateTimeString);
+    const rideDateTime = parse(dateTimeString, "MM/dd/yyyy hh:mma", new Date());
+    console.log("ride date time ---> ", rideDateTime);
 
-//     res.status(201).json({
-//       message: "Ride scheduled successfully!",
-//       scheduledRide,
-//     });
-//   } catch (error) {
-//     console.error("Error scheduling ride:", error);
-//     res.status(500).json({ message: "Something went wrong while scheduling the ride." });
-//   }
-// };
+
+    if (isNaN(rideDateTime.getTime())) {
+      console.error("Invalid ride date/time format.");
+      res.status(400).json({ message: "Invalid date or time format." });
+      return;
+    }
+
+
+    const notifyTime = new Date(rideDateTime.getTime() - 1 * 60 * 1000);
+    console.log("notifyTime ---> ", notifyTime);
+
+    const getcronTime = getCronTime(notifyTime);
+    console.log("getcronTime ---> ", getcronTime)
+
+    // const messageBody = `🚕 *Upcoming Ride Reminder*\n\n📅 Date: ${date}\n🕒 Time: ${time}\n👤 Customer: ${customerName}\n📞 Phone: ${customer_phone_number}`;
+
+
+    cron.schedule(getCronTime(notifyTime), async () => {
+      try {
+        await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+
+        console.log("Message sent successfully!!");
+      }
+      catch (error) {
+        console.log("Error Sending whatsapp number!!");
+      }
+    })
+
+    res.status(201).json({
+      message: "Ride scheduled successfully!",
+      scheduledRide,
+    });
+  } catch (error) {
+    console.error("Error scheduling ride:", error);
+    res.status(500).json({ message: "Something went wrong while scheduling the ride." });
+  }
+};
+
+function getCronTime(date: Date) {
+  const min = date.getMinutes();
+  const hour = date.getHours();
+  const day = date.getDate();
+  const month = date.getMonth() + 1;
+
+  if ([min, hour, day, month].some((v) => isNaN(v))) {
+    throw new Error("Invalid notifyTime for cron scheduling.");
+  }
+
+  return `${min} ${hour} ${day} ${month} *`;
+}
 
 
 export const getDriverWithAssignedVehicle = async (req: Request, res: Response) => {
@@ -1404,7 +1317,7 @@ export const getDriverWithAssignedVehicle = async (req: Request, res: Response) 
       {
         $project: {
           _id: 1,
-          driverId:1,
+          driverId: 1,
           startDate: 1,
           startTime: 1,
           endDate: 1,
@@ -1432,7 +1345,7 @@ export const getDriverWithAssignedVehicle = async (req: Request, res: Response) 
         }
       },
       {
-        $sort: { createdAt: -1 }  
+        $sort: { createdAt: -1 }
       }
     ]);
 
@@ -1445,9 +1358,9 @@ export const getDriverWithAssignedVehicle = async (req: Request, res: Response) 
 
 
 
-export const stopshiftbyadmin = async(req:Request, res:Response) =>{
-  const {driverId} = req.params;
-  const {endTime, endDate} = req.body;
+export const stopshiftbyadmin = async (req: Request, res: Response) => {
+  const { driverId } = req.params;
+  const { endTime, endDate } = req.body;
 
   console.log("Endtime ---> ", endTime);
   console.log("EndDate ---> ", endDate);
@@ -1455,36 +1368,37 @@ export const stopshiftbyadmin = async(req:Request, res:Response) =>{
   if (!endTime || !endDate) {
     res.status(400).json({ message: "endTime and endDate are required" });
     return;
- }
+  }
 
 
-  if(!driverId){
-    res.status(400).json({message:"DriverId is required!!"});
+  if (!driverId) {
+    res.status(400).json({ message: "DriverId is required!!" });
     return;
   }
 
-  try{
+  try {
 
-    const driver = await Driver.findOne({driverId });
+    const driver = await Driver.findOne({ driverId });
 
-    if(!driver){
-      res.status(404).json({message:"Driver not found!!"});
+    if (!driver) {
+      res.status(404).json({ message: "Driver not found!!" });
       return;
     }
 
-    const activeBooking = await BookingModels.findOne({driver:driver._id, 
-      status:{$in:"ongoing"}
+    const activeBooking = await BookingModels.findOne({
+      driver: driver._id,
+      status: { $in: "ongoing" }
     })
 
-    if(activeBooking){
-      res.status(400).json({message:"You cannot stop the shift while driver has an active ride in progress"});
+    if (activeBooking) {
+      res.status(400).json({ message: "You cannot stop the shift while driver has an active ride in progress" });
       return;
     }
 
     const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
 
-    if(!activeShift){
-      res.status(400).json({message:"No active shift found For the driver"})
+    if (!activeShift) {
+      res.status(400).json({ message: "No active shift found For the driver" })
       return;
     }
     // const endDatenow = endDate || new Date().toLocaleDateString('en-US', {
@@ -1505,36 +1419,36 @@ export const stopshiftbyadmin = async(req:Request, res:Response) =>{
     console.log(`start ----- > ${start}`)
     const end = parse(`${endDate} ${endTime}`, "MM/dd/yyyy hh:mma", new Date());
     console.log(`end ----- > ${end}`)
-   
+
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       res.status(400).json({ message: "Invalid date/time format" });
       return;
-   }
+    }
 
-   const durationMs = end.getTime() - start.getTime();
-   console.log(`durationMs ----- > ${durationMs}`)
+    const durationMs = end.getTime() - start.getTime();
+    console.log(`durationMs ----- > ${durationMs}`)
 
-   if (durationMs < 0) {
+    if (durationMs < 0) {
       res.status(400).json({ message: "End time must be after start time" });
       return;
-   }
+    }
 
-   const hours = Math.floor(durationMs / (1000 * 60 * 60));
-   const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
-   const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+    const hours = Math.floor(durationMs / (1000 * 60 * 60));
+    const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
 
-   activeShift.endTime = endTime;
-   activeShift.endDate = endDate;
-   activeShift.endTimeFormatted = end.toISOString();
-   activeShift.endMonth = end.toLocaleString('default', { month: 'long' });
-   activeShift.isActive = false;
-   activeShift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
-   activeShift.isStopedByAdmin = true;
+    activeShift.endTime = endTime;
+    activeShift.endDate = endDate;
+    activeShift.endTimeFormatted = end.toISOString();
+    activeShift.endMonth = end.toLocaleString('default', { month: 'long' });
+    activeShift.isActive = false;
+    activeShift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
+    activeShift.isStopedByAdmin = true;
 
 
-   const vehicle = await Vehicle.findById(activeShift.vehicleUsed);
-   console.log("vehicle --> ", vehicle)
+    const vehicle = await Vehicle.findById(activeShift.vehicleUsed);
+    console.log("vehicle --> ", vehicle)
     if (vehicle) {
       vehicle.isAssigned = false;
       await vehicle.save();
@@ -1549,7 +1463,7 @@ export const stopshiftbyadmin = async(req:Request, res:Response) =>{
       shiftDuration: activeShift.totalDuration,
     });
   }
-  catch(error){
-    res.status(500).json({message:"Something went wrong!!", error});
+  catch (error) {
+    res.status(500).json({ message: "Something went wrong!!", error });
   }
 }

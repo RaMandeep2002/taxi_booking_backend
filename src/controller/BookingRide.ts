@@ -6,6 +6,8 @@ import User from "../models/User";
 import { bookingSchema } from "../schema/bookingSchema";
 import redisClinet from "../config/redis";
 import { Shift } from "../models/ShiftModel";
+import { Driver } from "../models/DriverModel";
+import { Vehicle } from "../models/VehicleModel";
 
 const generateBookingId = () => {
   const bookingId = crypto.randomBytes(4).toString("hex");
@@ -211,3 +213,20 @@ export const getTheUserInformation = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to fetch the users!!", error });
   }
 }
+
+export const getCount = async (req: Request, res: Response) => {
+  try {
+    const driverCount = await Driver.countDocuments();
+    const vehicle = await Vehicle.countDocuments();
+    const bookings = await BookingModels.countDocuments();
+    const shifts = await Shift.countDocuments();
+    res.status(200).json({
+      driverCount: driverCount,
+      vehicleCount: vehicle,
+      bookingCount: bookings,
+      shiftsCount: shifts
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to count drivers", error });
+  }
+};

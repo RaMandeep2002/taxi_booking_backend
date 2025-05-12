@@ -30,6 +30,7 @@ export interface IBooking extends Document {
   wating_time : number;
   wating_time_formated: string;
   driver: Types.ObjectId;
+  vehicleUsed: Types.ObjectId;
   paymentStatus: "pending" | "paid";
   paymentMethod: "cash" | "card" | "online";
   status: "pending" | "accepted" | "ongoing" | "completed" | "cancelled";
@@ -124,6 +125,10 @@ const BookingSchema: Schema = new Schema({
   driver: {
     type: Schema.Types.ObjectId,
     ref: "Driver",
+  },
+  vehicleUsed:{
+    type:Schema.Types.ObjectId,
+    ref:"Vehicle",
   },
   paymentStatus: {
     type: String,
