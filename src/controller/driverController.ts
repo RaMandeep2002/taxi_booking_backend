@@ -7,6 +7,7 @@ import jwt from "jsonwebtoken";
 import { SettingSchemaModel } from "../models/SettingModels";
 import { Vehicle } from "../models/VehicleModel";
 import { parse } from "date-fns";
+import redisClinet from "../config/redis";
 // import { generateBookingId } from '../utils/generateId'; // You'll need to create this utility function
 
 
@@ -51,24 +52,38 @@ export const updateDriverStatus = async (req: Request, res: Response) => {
   }
 };
 
+
+
 export const getAllVehicles = async (req: Request, res: Response) => {
-  
+  await redisClinet.del("vehicles:list");
+  const cacheKey = "vehicles:list";
   try {
+    // Try to get vehicles from Redis cache
+    const cachedVehicles = await redisClinet.get(cacheKey);
+    if (cachedVehicles) {
+      res.status(200).json({
+        message: "Vehicles retrieved successfully (from cache)",
+        vehicles: JSON.parse(cachedVehicles),
+      });
+      return;
+    }
+
     const vehicles = await Vehicle.find().select(
       "_id company vehicleModel year vehicle_plate_number status registrationNumber isAssigned"
     );
 
-
     if (!vehicles || vehicles.length === 0) {
-       res.status(404).json({ message: "No vehicles assigned to driver" });
-       return;
+      res.status(404).json({ message: "No vehicles assigned to driver" });
+      return;
     }
+
+    // Store vehicles in Redis cache for 1 hour
+    await redisClinet.setEx(cacheKey, 3600, JSON.stringify(vehicles));
 
     res.status(200).json({
       message: "Vehicles retrieved successfully",
-      vehicles: vehicles
+      vehicles: vehicles,
     });
-
   } catch (error) {
     console.error("Error retrieving driver vehicle:", error);
     res.status(500).json({ message: "Internal server error", error });

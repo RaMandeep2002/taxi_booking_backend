@@ -269,7 +269,25 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
 // };
 export const getDriverDetails = async (req: Request, res: Response) => {
   try {
-    const drivers = await Driver.find().lean(); // Using lean() for faster query
+    await redisClinet.del("drivers:list");
+    const cacheKey = "drivers:list";
+
+    // Try to get drivers from Redis cache
+    const cachedDrivers = await redisClinet.get(cacheKey);
+    if (cachedDrivers) {
+      res.status(200).json({
+        success: true,
+        message: "Drivers fetched successfully (from cache)",
+        data: JSON.parse(cachedDrivers),
+      });
+      return;
+    }
+
+    // If not cached, fetch from DB
+    const drivers = await Driver.find().lean();
+
+    // Store in Redis for 1 hour
+    await redisClinet.setEx(cacheKey, 3600, JSON.stringify(drivers));
 
     res.status(200).json({
       success: true,
@@ -313,6 +331,8 @@ export const upadateDriver = async (req: Request, res: Response) => {
       { $set: { name: drivername, email } }
     );
 
+    await redisClinet.del("drivers:list");
+
     res
       .status(200)
       .json({ message: "Driver update successfully", updatedDriver });
@@ -348,6 +368,9 @@ export const deleteDriver = async (req: Request, res: Response) => {
     }
 
     await User.findOneAndDelete({ email: emailwhichtobedeleted });
+
+    // Delete drivers list from redis cache
+    await redisClinet.del("drivers:list");
 
     res.status(200).json({ message: "Driver Deleted Successfully" });
   } catch (error: any) {
@@ -711,6 +734,9 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
       { new: true },
     );
 
+    await redisClinet.del("vehicles:list");
+
+
     res
       .status(200)
       .json({ message: "Successfully updateed!!", vechicle: updateDriver });
@@ -721,12 +747,10 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
 export const removeVehicle = async (req: Request, res: Response) => {
   const { registrationNumber } = req.params;
 
-
   if (!registrationNumber) {
     res.status(400).json({ message: "DriverId is Invaild!!" });
     return;
   }
-
 
   try {
     const existingVehicle = await Vehicle.findOne({ registrationNumber });
@@ -750,6 +774,9 @@ export const removeVehicle = async (req: Request, res: Response) => {
       res.status(404).json({ message: "Vehicle is not found" });
       return;
     }
+
+    // Invalidate vehicles list cache in Redis
+    await redisClinet.del("vehicles:list");
 
     res.status(200).json({ message: "Vehicle deleted successfully" });
   } catch (error) {
