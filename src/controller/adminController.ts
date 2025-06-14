@@ -19,6 +19,7 @@ import { format } from "fast-csv";
 import { parse } from "date-fns";
 import cron from "node-cron";
 import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
+import { sendEmailMessage } from "../utils/emailMessageSender";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
@@ -151,6 +152,40 @@ export const adddriver = async (req: Request, res: Response) => {
     res.status(400).json({ messge: "Something went worng!", error });
   }
 };
+
+export const resetPassword = async (req: Request, res:Response) =>{
+  const {email , newPassword} = req.body;
+
+  if(!email || !newPassword) {
+    res.status(400).json({message:"Email and New Password are Required!"});
+    return;
+  }
+
+  try{
+    const driver  = await Driver.findOne({email});
+    if(!driver){
+      res.status(404).json({message:"Driver not Found!!"});
+      return;
+    }
+
+    const user = await User.findOne({email});
+    if(!user){
+      res.status(404).json({ message: "User associated with driver not found." });
+      return;
+    }
+
+    const hashedpassword = await bcrypt.hash(newPassword, 10);
+
+    user.password = hashedpassword;
+    await user.save();
+
+    res.status(200).json({message:"Password reset successfull"});
+  }
+  catch(error:any){
+    res.status(500).json({message:"Error resseting the password!", error:error.message});
+    return;
+  }
+}
 
 export const addMultipleDrivers = async (req: Request, res: Response) => {
   const { drivers } = req.body; // Expecting an array of driver objects
@@ -920,8 +955,8 @@ export const gettingReport = async (req: Request, res: Response) => {
         "Finish Time": booking.dropdownTime,
         "Customer Phone": booking.phoneNumber,
         "Address": booking.pickup?.address || "N/A",
-        "Vehicle": booking.vehicleUsed.company || "N/A",
-        "Vehicle Number": booking.vehicleUsed.vehicle_plate_number || "N/A",
+        "Vehicle": booking.vehicleUsed?.company || "N/A",
+        "Vehicle Number": booking.vehicleUsed?.vehicle_plate_number || "N/A",
         "Meter": booking.distance,
       });
     });
@@ -1287,13 +1322,14 @@ export const scheduleRide = async (req: Request, res: Response) => {
       try {
         await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
 
+        await sendEmailMessage(date,time,customerName,customer_phone_number,pickupAddress,dropOffAddress);
         console.log("Message sent successfully!!");
       }
       catch (error) {
         console.log("Error Sending whatsapp number!!");
       }
     })
-
+    
     res.status(201).json({
       message: "Ride scheduled successfully!",
       scheduledRide,

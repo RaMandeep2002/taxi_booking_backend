@@ -30,6 +30,7 @@ import {
   getDriverWithAssignedVehicle,
   stopshiftbyadmin,
   scheduleRide,
+  resetPassword,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -37,6 +38,7 @@ const router = express.Router();
 
 router.get("/adminInfo", authenticate, authorize(["admin"]), getAdminInfo);
 router.post("/add-driver", authenticate, authorize(["admin"]), adddriver);
+router.post("/resetPassword", authenticate, authorize(["admin"]), resetPassword);
 router.post("/add-multi-driver", authenticate, authorize(["admin"]),addMultipleDrivers );
 router.get(
   "/driver-details",
