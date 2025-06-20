@@ -321,13 +321,24 @@ export const getDriverDetails = async (req: Request, res: Response) => {
     // If not cached, fetch from DB
     const drivers = await Driver.find().lean();
 
+    const emails = drivers.map((driver) => driver.email);
+    const users = await User.find({email: {$in: emails}}).select("email password").lean();
+
+    const driverWithPassword = drivers.map((driver) =>{
+      const user = users.find((x)=> x.email === driver.email);
+      return{
+        ...driver,
+        password: user?.password || null,
+      }
+    })
+
     // Store in Redis for 1 hour
-    await redisClinet.setEx(cacheKey, 3600, JSON.stringify(drivers));
+    await redisClinet.setEx(cacheKey, 3600, JSON.stringify(driverWithPassword));
 
     res.status(200).json({
       success: true,
       message: "Drivers fetched successfully",
-      data: drivers,
+      data: driverWithPassword,
     });
 
   } catch (error) {
@@ -343,10 +354,11 @@ export const upadateDriver = async (req: Request, res: Response) => {
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const { drivername, email, phoneNumber, driversLicenseNumber } = validationResult.data;
+  const { drivername, email, phoneNumber, driversLicenseNumber , password} = validationResult.data;
 
   try {
     const originalDriver = await Driver.findOne({ driverId });
+
     if (!originalDriver) {
       res.status(404).json({ message: "Driver not found!" });
       return;
@@ -354,16 +366,35 @@ export const upadateDriver = async (req: Request, res: Response) => {
 
     const oldEmail = originalDriver.email;
 
+    const updateData :any = {
+      drivername,
+      email,
+      phoneNumber,
+      driversLicenseNumber,
+    };
+
     const updatedDriver = await Driver.findOneAndUpdate(
       { driverId },
-      { $set: { drivername, email, phoneNumber, driversLicenseNumber } },
+      { $set: updateData},
       { new: true }
     );
+
     console.log("Updated Driver --------> ", updatedDriver);
+
+    const userUpdateData: any = {
+      name:drivername,
+      email,
+    }
+
+
+    if(password){
+      const hashedpassword = await bcrypt.hash(password, 10);
+      userUpdateData.password = hashedpassword;
+    } 
 
     await User.findOneAndUpdate(
       { email: oldEmail },
-      { $set: { name: drivername, email } }
+      { $set: userUpdateData }
     );
 
     await redisClinet.del("drivers:list");

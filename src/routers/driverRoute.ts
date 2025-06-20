@@ -1,10 +1,12 @@
 import express from "express";
 import {
+  activeShift,
   CalculateTotalFareApi,
   deteleallShiftsHistory,
   end_Ride,
   end_Ride_with_dropTime,
   getAllVehicles,
+  logout,
   // endRide,
   start_Ride,
   start_Ride_with_pickuptime,
@@ -42,6 +44,13 @@ router.post(
   authenticate,
   authorize(["driver"]),
   stopShiftwithtime,
+);
+
+router.get(
+  "/check_active_shift",
+  authenticate,
+  authorize(["driver"]),
+  activeShift,
 );
 router.post(
   "/start-shift-with-time",
@@ -101,4 +110,14 @@ router.post("/CalculateTotalFareApi", CalculateTotalFareApi)
 router.delete("/delete-shifts/:driverId", authenticate, authorize(["driver"]), deteleallShiftsHistory)
 router.get("/getbooking", authenticate, authorize(["driver"]), getAllBookingRider);
 router.get("/settings", getsetting);
+
+router.post(
+  "/logout",
+  authenticate,
+  authorize(["driver"]),
+  logout,
+);
+
+
+
 export default router;
