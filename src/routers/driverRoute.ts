@@ -3,6 +3,7 @@ import {
   activeShift,
   CalculateTotalFareApi,
   deteleallShiftsHistory,
+  driverInformation,
   end_Ride,
   end_Ride_with_dropTime,
   getAllVehicles,
@@ -26,6 +27,9 @@ const router = express.Router();
 
 // router.post("/driver_login", driverLogin);
 router.get("/getDriverVechile", getAllVehicles);
+
+router.get("/getDriverInfo",  authenticate,
+  authorize(["driver"]), driverInformation);
 // router.get("/getallVechile", authenticate, authorize(["driver"]), getAllVehicles);
 router.post(
   "/start-shift",

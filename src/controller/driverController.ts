@@ -89,7 +89,38 @@ export const getAllVehicles = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal server error", error });
   }
 };
+export const driverInformation = async (req: Request, res: Response) => {
+  console.log("enter")
+  try {
+    const token = req.headers.authorization?.split(" ")[1];
 
+    if (!token) {
+       res.status(400).json({ message: "Authorization token is required!" });
+       return;
+    }
+
+    const driverIdIdentity = getDriverId(token);
+
+    if (!driverIdIdentity) {
+       res.status(400).json({ message: "Driver identity is required!" });
+       return
+    }
+
+    const driver = await Driver.findOne({ driverId: driverIdIdentity }).select("_id drivername email driversLicenseNumber isActive");
+
+    if (!driver) {
+      res.status(404).json({ message: "No driver found!" });
+      return
+    }
+
+    res.status(200).json({ message: "Successfully retrieved the driver", driver });
+    return
+  } catch (error) {
+    console.error("Error fetching driver information:", error);
+    res.status(500).json({ message: "Failed to get driver information", error });
+    return
+  }
+};
 // export const getAllVehicles = async (req: Request, res: Response) => {
 //   try {
 //     const vehicles = await Vehicle.find().select(
@@ -256,7 +287,7 @@ export const activeShift = async (req: Request, res: Response) => {
   }
 
   try {
-    const driver = await Driver.findOne({ driverId: driverIdIdentity }).populate("shifts"); 
+    const driver = await Driver.findOne({ driverId: driverIdIdentity }).populate("shifts");
     console.log("driver ==> ", driver);
     if (!driver) {
       res.status(404).json({ message: "Driver not found!!" });
@@ -856,12 +887,12 @@ export const end_Ride = async (req: Request, res: Response) => {
         address: dropAddress
       };
 
-      activeShift.totalEarnings = parseFloat(
-        (activeShift.totalEarnings + totalFare).toFixed(2)
-      );
-      activeShift.totalDistance = parseFloat(
-        (activeShift.totalDistance + distance).toFixed(2)
-      );
+    activeShift.totalEarnings = parseFloat(
+      (activeShift.totalEarnings + totalFare).toFixed(2)
+    );
+    activeShift.totalDistance = parseFloat(
+      (activeShift.totalDistance + distance).toFixed(2)
+    );
     await activeShift.save();
     await booking.save();
     await driver.save();

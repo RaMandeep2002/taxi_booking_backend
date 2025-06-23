@@ -1010,6 +1010,115 @@ export const gettingReport = async (req: Request, res: Response) => {
   }
 };
 
+export const gettingReportAndSendEmail = async(req:Request, res:Response) =>{
+  try{
+    // const today = new Date();
+    // const fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+    // const toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+    const bookings = await BookingModels.aggregate([
+      // {
+      //   $match: {
+      //     pickupDate: {
+      //       $gte: fromDate.toISOString(),
+      //       $lte: toDate.toISOString(),
+      //     },
+      //   },
+      // },
+      {
+        $lookup: {
+          from: "drivers",
+          localField: "driver",
+          foreignField: "_id",
+          as: "driver",
+        },
+      },
+      { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "vehicles",
+          localField: "vehicleUsed",
+          foreignField: "_id",
+          as: "vehicleUsed",
+        },
+      },
+      { $unwind: { path: "$vehicleUsed", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+             bookingId: 1,
+          customerName: 1,
+          phoneNumber: 1,
+          "pickup.address": 1,
+          dropOff: 1,
+          pickuptime: 1,
+          pickupDate: 1,
+          pickupTimeFormatted: 1,
+          pickupMonth: 1,
+          pickupWeek: 1,
+          dropdownDate: 1,
+          dropdownTime: 1,
+          arrived: 1,
+          distance: 1,
+          totalFare: 1,
+          paymentStatus: 1,
+          status: 1,
+          "driver.driverId": 1,
+          "driver.drivername": 1,
+          "driver.email": 1,
+          "driver.phoneNumber": 1,
+          "driver.status": 1,
+          "driver.isOnline": 1,
+          "vehicleUsed.registrationNumber": 1,
+          "vehicleUsed.vehicleModel": 1,
+          "vehicleUsed.year": 1,
+          "vehicleUsed.company": 1,
+          "vehicleUsed.vehicle_plate_number": 1,
+        },
+      },
+    ]);
+
+    const filepath = "monthly_report.csv";
+    const writeStream = fs.createWriteStream(filepath);
+    const csvStream = format({ headers: true });
+
+    csvStream.pipe(writeStream);
+
+    bookings.forEach((booking) => {
+      csvStream.write({
+        "Booking ID": booking.bookingId,
+        "Pickup Date": booking.pickupDate,
+        "Pickup Time": booking.pickuptime,
+        "Pickup Month": booking.pickupMonth,
+        "Pickup Week": booking.pickupWeek,
+        "Arrived": booking.arrived,
+        "Contact": booking.driver?.phoneNumber || "N/A",
+        "Finish Date": booking.dropdownDate,
+        "Finish Time": booking.dropdownTime,
+        "Customer Phone": booking.phoneNumber,
+        "Address": booking.pickup?.address || "N/A",
+        "Vehicle": booking.vehicleUsed?.company || "N/A",
+        "Vehicle Number": booking.vehicleUsed?.vehicle_plate_number || "N/A",
+        "Meter": booking.distance,
+      });
+    });
+
+    csvStream.end();
+
+    writeStream.on("finish", () => {
+      res.download(filepath, "monthly_bookings_reports.csv", (err) => {
+        if (err) {
+          console.error("Error sending file:", err);
+          res.status(500).json({ message: "Error generating CSV file." });
+        }
+        fs.unlinkSync(filepath);
+      });
+    });
+
+  } catch (err) {
+    console.error("Error in monthly report cron:", err);
+  }
+}
+
+
 // Helper to parse MM/DD/YYYY to Date object
 const parseDate = (dateStr: string): Date => {
   const [month, day, year] = dateStr.split("/");

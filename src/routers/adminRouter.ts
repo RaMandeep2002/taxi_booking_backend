@@ -31,6 +31,7 @@ import {
   stopshiftbyadmin,
   scheduleRide,
   resetPassword,
+  gettingReportAndSendEmail,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -136,6 +137,7 @@ router.get("/getDriverListWithVehicle",authenticate, authorize(["admin"]), getDr
 router.get("/getDriverWithVehicleexculudeDriver",authenticate, authorize(["admin"]), getDriverWithVehicleexculudeDriver);
 // router.get("/report-csv",authenticate, authorize(["admin"]), gettingReport);
 router.get("/report-csv", gettingReport);
+router.get("/monthly-report-csv", gettingReportAndSendEmail);
 router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
 
 
