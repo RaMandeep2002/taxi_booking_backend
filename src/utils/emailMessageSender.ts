@@ -63,7 +63,7 @@ export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath:
         });
 
         const mailOptions = {
-            from: `"Punjab Taxi Service" <${process.env.EMAIL_USER}>`,
+            from: `"Salmon Arm Taxi" <${process.env.EMAIL_USER}>`,
             to: process.env.EMAIL_USER,
             subject: "Monthly Booking Report",
             text: "Please find attached the booking report for this month.",
