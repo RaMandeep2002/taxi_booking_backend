@@ -62,6 +62,8 @@ export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath:
             }
         });
 
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+
         const mailOptions = {
             from: `"Salmon Arm Taxi" <${process.env.EMAIL_USER}>`,
             to: process.env.EMAIL_USER,
@@ -69,7 +71,7 @@ export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath:
             text: "Please find attached the booking report for this month.",
             attachments: [
                 {
-                    filename: "monthly_bookings_reports.csv",
+                    filename: `monthly_bookings_reports_${timestamp}.csv`,
                     path: path.resolve(filePath),
                 },
             ],
