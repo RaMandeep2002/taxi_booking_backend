@@ -1014,7 +1014,22 @@ export const gettingReport = async (req: Request, res: Response) => {
 
 export const generateAndSendReport = async () => {
   try {
+    const today = new Date();
+    console.log("Today ==> ", today);
+    const fromDate = new Date(today.getFullYear(), today.getMonth() -1 , 1);
+    console.log("Form date ===> ", fromDate);
+    const toDate = new Date(today.getFullYear() , today.getMonth(),0);
+    console.log("To date ===> ", toDate);
+
     const bookings = await BookingModels.aggregate([
+      {
+        $match: {
+          pickupDate: {
+            $gte: fromDate.toISOString(),
+            $lte: toDate.toISOString(),
+          },
+        },
+      },
       {
         $lookup: {
           from: "drivers",
