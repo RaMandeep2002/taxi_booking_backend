@@ -19,7 +19,9 @@ import { format } from "fast-csv";
 import { parse } from "date-fns";
 import cron from "node-cron";
 import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
-import { sendEmailMessage } from "../utils/emailMessageSender";
+import { sendBookingsDetailsReportEmail, sendEmailMessage } from "../utils/emailMessageSender";
+import path from "path";
+import { record } from "zod";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
@@ -153,23 +155,23 @@ export const adddriver = async (req: Request, res: Response) => {
   }
 };
 
-export const resetPassword = async (req: Request, res:Response) =>{
-  const {email , newPassword} = req.body;
+export const resetPassword = async (req: Request, res: Response) => {
+  const { email, newPassword } = req.body;
 
-  if(!email || !newPassword) {
-    res.status(400).json({message:"Email and New Password are Required!"});
+  if (!email || !newPassword) {
+    res.status(400).json({ message: "Email and New Password are Required!" });
     return;
   }
 
-  try{
-    const driver  = await Driver.findOne({email});
-    if(!driver){
-      res.status(404).json({message:"Driver not Found!!"});
+  try {
+    const driver = await Driver.findOne({ email });
+    if (!driver) {
+      res.status(404).json({ message: "Driver not Found!!" });
       return;
     }
 
-    const user = await User.findOne({email});
-    if(!user){
+    const user = await User.findOne({ email });
+    if (!user) {
       res.status(404).json({ message: "User associated with driver not found." });
       return;
     }
@@ -179,10 +181,10 @@ export const resetPassword = async (req: Request, res:Response) =>{
     user.password = hashedpassword;
     await user.save();
 
-    res.status(200).json({message:"Password reset successfull"});
+    res.status(200).json({ message: "Password reset successfull" });
   }
-  catch(error:any){
-    res.status(500).json({message:"Error resseting the password!", error:error.message});
+  catch (error: any) {
+    res.status(500).json({ message: "Error resseting the password!", error: error.message });
     return;
   }
 }
@@ -322,11 +324,11 @@ export const getDriverDetails = async (req: Request, res: Response) => {
     const drivers = await Driver.find().lean();
 
     const emails = drivers.map((driver) => driver.email);
-    const users = await User.find({email: {$in: emails}}).select("email password").lean();
+    const users = await User.find({ email: { $in: emails } }).select("email password").lean();
 
-    const driverWithPassword = drivers.map((driver) =>{
-      const user = users.find((x)=> x.email === driver.email);
-      return{
+    const driverWithPassword = drivers.map((driver) => {
+      const user = users.find((x) => x.email === driver.email);
+      return {
         ...driver,
         password: user?.password || null,
       }
@@ -354,7 +356,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
     res.status(400).json({ errors: validationResult.error.errors });
     return;
   }
-  const { drivername, email, phoneNumber, driversLicenseNumber , password} = validationResult.data;
+  const { drivername, email, phoneNumber, driversLicenseNumber, password } = validationResult.data;
 
   try {
     const originalDriver = await Driver.findOne({ driverId });
@@ -366,7 +368,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
 
     const oldEmail = originalDriver.email;
 
-    const updateData :any = {
+    const updateData: any = {
       drivername,
       email,
       phoneNumber,
@@ -375,22 +377,22 @@ export const upadateDriver = async (req: Request, res: Response) => {
 
     const updatedDriver = await Driver.findOneAndUpdate(
       { driverId },
-      { $set: updateData},
+      { $set: updateData },
       { new: true }
     );
 
     console.log("Updated Driver --------> ", updatedDriver);
 
     const userUpdateData: any = {
-      name:drivername,
+      name: drivername,
       email,
     }
 
 
-    if(password){
+    if (password) {
       const hashedpassword = await bcrypt.hash(password, 10);
       userUpdateData.password = hashedpassword;
-    } 
+    }
 
     await User.findOneAndUpdate(
       { email: oldEmail },
@@ -1010,20 +1012,9 @@ export const gettingReport = async (req: Request, res: Response) => {
   }
 };
 
-export const gettingReportAndSendEmail = async(req:Request, res:Response) =>{
-  try{
-    // const today = new Date();
-    // const fromDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    // const toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+export const generateAndSendReport = async () => {
+  try {
     const bookings = await BookingModels.aggregate([
-      // {
-      //   $match: {
-      //     pickupDate: {
-      //       $gte: fromDate.toISOString(),
-      //       $lte: toDate.toISOString(),
-      //     },
-      //   },
-      // },
       {
         $lookup: {
           from: "drivers",
@@ -1044,7 +1035,7 @@ export const gettingReportAndSendEmail = async(req:Request, res:Response) =>{
       { $unwind: { path: "$vehicleUsed", preserveNullAndEmptyArrays: true } },
       {
         $project: {
-             bookingId: 1,
+          bookingId: 1,
           customerName: 1,
           phoneNumber: 1,
           "pickup.address": 1,
@@ -1076,45 +1067,86 @@ export const gettingReportAndSendEmail = async(req:Request, res:Response) =>{
       },
     ]);
 
-    const filepath = "monthly_report.csv";
-    const writeStream = fs.createWriteStream(filepath);
-    const csvStream = format({ headers: true });
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `booking_${timestamp}.csv`;
+    const filepath = path.resolve(__dirname, "..", 'temp', filename);
 
-    csvStream.pipe(writeStream);
 
-    bookings.forEach((booking) => {
-      csvStream.write({
-        "Booking ID": booking.bookingId,
-        "Pickup Date": booking.pickupDate,
-        "Pickup Time": booking.pickuptime,
-        "Pickup Month": booking.pickupMonth,
-        "Pickup Week": booking.pickupWeek,
-        "Arrived": booking.arrived,
-        "Contact": booking.driver?.phoneNumber || "N/A",
-        "Finish Date": booking.dropdownDate,
-        "Finish Time": booking.dropdownTime,
-        "Customer Phone": booking.phoneNumber,
-        "Address": booking.pickup?.address || "N/A",
-        "Vehicle": booking.vehicleUsed?.company || "N/A",
-        "Vehicle Number": booking.vehicleUsed?.vehicle_plate_number || "N/A",
-        "Meter": booking.distance,
-      });
-    });
+    const tempDir = path.dirname(filepath);
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
 
-    csvStream.end();
+    const csvData = bookings.map(booking => ({
+      "Booking ID": booking.bookingId || "N/A",
+      "Pickup Date": booking.pickupDate || "N/A",
+      "Pickup Time": booking.pickuptime || "N/A",
+      "Pickup Month": booking.pickupMonth || "N/A",
+      "Pickup Week": booking.pickupWeek || "N/A",
+      "Arrived": booking.arrived || "N/A",
+      "Contact": booking.driver?.phoneNumber || "N/A",
+      "Finish Date": booking.dropdownDate || "N/A",
+      "Finish Time": booking.dropdownTime || "N/A",
+      "Customer Phone": booking.phoneNumber || "N/A",
+      "Address": booking.pickup?.address || "N/A",
+      "Vehicle": booking.vehicleUsed?.company || "N/A",
+      "Vehicle Number": booking.vehicleUsed?.vehicle_plate_number || "N/A",
+      "Meter": booking.distance || "N/A",
+    }));
 
-    writeStream.on("finish", () => {
-      res.download(filepath, "monthly_bookings_reports.csv", (err) => {
-        if (err) {
-          console.error("Error sending file:", err);
-          res.status(500).json({ message: "Error generating CSV file." });
-        }
+    await new Promise<void>((resolve, reject) => {
+      const writeStream = fs.createWriteStream(filepath);
+      const csvStream = format({ headers: true });
+
+      csvStream.pipe(writeStream);
+
+      csvData.forEach(row => {
+        csvStream.write(row);
+      })
+
+      csvStream.end();
+
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    })
+
+
+    console.log(`📄 CSV file created: ${filepath}`);
+
+    try {
+      await sendBookingsDetailsReportEmail("ramandeepsingh1511@gmail.com", filepath);
+      console.log("📧 Report emailed successfully!");
+      return { success: true, recordCount: bookings.length }
+    } catch (error) {
+      console.error("📧 Report emailed Failed..");
+      throw error;
+    } finally {
+      try {
         fs.unlinkSync(filepath);
-      });
-    });
-
+        console.log("🗑️ Temporary file cleaned up successfully");
+      } catch (unlinkErr) {
+        console.error("⚠️ Failed to delete temporary file:", unlinkErr);
+      }
+    }
   } catch (err) {
-    console.error("Error in monthly report cron:", err);
+    console.error("Error in generating report and sending email:", err);
+    throw err;
+  }
+};
+
+
+export const gettingReportAndSendEmail = async(req:Request, res:Response) =>{
+  try{
+    const result = await generateAndSendReport();
+
+    res.status(200).json({
+      message:"Report generator and Emailed successfully!",
+      recordcount : result?.recordCount,
+      emailSent: true
+    })
+  }catch(error){
+    console.error("Error in generating report and sending email:", error);
+    res.status(500).json({message:"Internal server error", error})
   }
 }
 
@@ -1462,14 +1494,14 @@ export const scheduleRide = async (req: Request, res: Response) => {
       try {
         await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
 
-        await sendEmailMessage(date,time,customerName,customer_phone_number,pickupAddress,dropOffAddress);
+        await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
         console.log("Message sent successfully!!");
       }
       catch (error) {
         console.log("Error Sending whatsapp number!!");
       }
     })
-    
+
     res.status(201).json({
       message: "Ride scheduled successfully!",
       scheduledRide,

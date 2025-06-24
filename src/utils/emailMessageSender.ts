@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import dotenv from "dotenv";
+import path from "path";
 dotenv.config();
 
 export const sendEmailMessage = async (date: string, time: string, customerName: string,
@@ -46,5 +47,38 @@ export const sendEmailMessage = async (date: string, time: string, customerName:
     }
     catch (error) {
         console.error("⚠️ Failed to send admin email: ", error);
+    }
+}
+
+export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath: string) => {
+    try {
+        const transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                // user: process.env.EMAIL_USER,
+                // pass: process.env.EMAIL_PASSWORD
+                user: "ramandeepsingh1511@gmail.com",
+                pass: "alxedclokidiewkc"
+            }
+        });
+
+        const mailOptions = {
+            from: `"Punjab Taxi Service" <${process.env.EMAIL_USER}>`,
+            to: process.env.EMAIL_USER,
+            subject: "Monthly Booking Report",
+            text: "Please find attached the booking report for this month.",
+            attachments: [
+                {
+                    filename: "monthly_bookings_reports.csv",
+                    path: path.resolve(filePath),
+                },
+            ],
+        };
+
+
+        await transporter.sendMail(mailOptions);
+        console.log("📧 Email sent Successfully!");
+    } catch (error) {
+        console.error("⚠️ Email sending email", error);
     }
 }
