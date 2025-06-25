@@ -1129,7 +1129,7 @@ export const generateAndSendReport = async () => {
     console.log(`📄 CSV file created: ${filepath}`);
 
     try {
-      await sendBookingsDetailsReportEmail("ramandeepsingh1511@gmail.com", filepath);
+      await sendBookingsDetailsReportEmail("salmonarmtaxis@gmail.com", filepath);
       console.log("📧 Report emailed successfully!");
       return { success: true, recordCount: bookings.length }
     } catch (error) {

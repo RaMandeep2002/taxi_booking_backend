@@ -15,8 +15,8 @@ export const sendEmailMessage = async (date: string, time: string, customerName:
             auth: {
                 // user: process.env.EMAIL_USER,
                 // pass: process.env.EMAIL_PASSWORD
-                user: "ramandeepsingh1511@gmail.com",
-                pass: "alxedclokidiewkc"
+                user: "salmonarmtaxis@gmail.com",
+                pass: "pnludxmowqpqxpdj"
             }
         });
 
@@ -57,7 +57,7 @@ export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath:
             auth: {
                 // user: process.env.EMAIL_USER,
                 // pass: process.env.EMAIL_PASSWORD
-                user: "ramandeepsingh1511@gmail.com",
+                user: "salmonarmtaxis@gmail.com",
                 pass: "alxedclokidiewkc"
             }
         });
