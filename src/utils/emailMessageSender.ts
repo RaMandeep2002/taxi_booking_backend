@@ -58,7 +58,7 @@ export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath:
                 // user: process.env.EMAIL_USER,
                 // pass: process.env.EMAIL_PASSWORD
                 user: "salmonarmtaxis@gmail.com",
-                pass: "alxedclokidiewkc"
+                pass: "pnludxmowqpqxpdj"
             }
         });
 
