@@ -1174,7 +1174,6 @@ function secondsToHHMMSS(totalSeconds: number): string {
 
 
 
-
 export const logout = async (req: Request, res: Response) => {
   const token = req.headers.authorization?.split(" ")[1];
   const driverIdIdentity = getDriverId(token);
@@ -1195,7 +1194,7 @@ export const logout = async (req: Request, res: Response) => {
 
     const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
     if (!activeShift) {
-      res.status(400).json({ message: "No active shift found!!" });
+      res.status(200).json({ message: "Logout successfully"})
       return;
     }
 
