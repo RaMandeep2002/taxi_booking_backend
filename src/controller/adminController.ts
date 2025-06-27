@@ -1245,7 +1245,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       // Sort by latest bookings (newest first based on creation date)
       {
         $sort: {
-          updatedAt: -1,
+          pickupTimeFormatted: -1, // descending; newest pickups first
         },
       },
 
