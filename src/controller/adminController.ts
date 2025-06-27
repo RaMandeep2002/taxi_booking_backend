@@ -1242,10 +1242,10 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
         },
       },
 
-      // Sort by latest bookings
+      // Sort by latest bookings (newest first based on creation date)
       {
         $sort: {
-          pickupDate: -1,
+          createdAt: -1,
         },
       },
 
