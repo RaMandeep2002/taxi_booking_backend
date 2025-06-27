@@ -19,7 +19,7 @@ import { format } from "fast-csv";
 import { parse } from "date-fns";
 import cron from "node-cron";
 import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
-import { sendBookingsDetailsReportEmail, sendEmailMessage } from "../utils/emailMessageSender";
+import { sendBookingsDetailsReportEmail, sendEmailMessage, sendEmailMessageBeforeTime } from "../utils/emailMessageSender";
 import path from "path";
 import { record } from "zod";
 
@@ -1496,7 +1496,7 @@ export const scheduleRide = async (req: Request, res: Response) => {
     }
 
 
-    const notifyTime = new Date(rideDateTime.getTime() - 1 * 60 * 1000);
+    const notifyTime = new Date(rideDateTime.getTime() - 10 * 60 * 1000);
     console.log("notifyTime ---> ", notifyTime);
 
     const getcronTime = getCronTime(notifyTime);
@@ -1504,18 +1504,19 @@ export const scheduleRide = async (req: Request, res: Response) => {
 
     // const messageBody = `🚕 *Upcoming Ride Reminder*\n\n📅 Date: ${date}\n🕒 Time: ${time}\n👤 Customer: ${customerName}\n📞 Phone: ${customer_phone_number}`;
 
-
+    await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+    
     cron.schedule(getCronTime(notifyTime), async () => {
       try {
-        await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
-
-        await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+        // await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+        await sendEmailMessageBeforeTime(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
         console.log("Message sent successfully!!");
       }
       catch (error) {
-        console.log("Error Sending whatsapp number!!");
-      }
-    })
+          console.log("Error Sending whatsapp number!!");
+        }
+      })
+          // await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
 
     res.status(201).json({
       message: "Ride scheduled successfully!",
