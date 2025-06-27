@@ -7,8 +7,6 @@ export const sendEmailMessage = async (date: string, time: string, customerName:
     customerPhone: string,
     pickupAddress: string,
     dropOffAddress: string) => {
-    console.log(`${process.env.EMAIL_USER,
-        process.env.EMAIL_PASSWORD}`)
     try {
         const transporter = nodemailer.createTransport({
             service: "gmail",
@@ -41,7 +39,7 @@ export const sendEmailMessage = async (date: string, time: string, customerName:
           `
         }
         await transporter.sendMail(mailOptions);
-        console.log("✅ Admin email sent successfully");
+        console.log("✅ Ride schedule email sent successfully");
     }
     catch (error) {
         console.error("⚠️ Failed to send admin email: ", error);
@@ -52,8 +50,6 @@ export const sendEmailMessageBeforeTime = async (date: string, time: string, cus
     customerPhone: string,
     pickupAddress: string,
     dropOffAddress: string) => {
-    console.log(`${process.env.EMAIL_USER,
-        process.env.EMAIL_PASSWORD}`)
     try {
         const transporter = nodemailer.createTransport({
             service: "gmail",
@@ -85,7 +81,7 @@ export const sendEmailMessageBeforeTime = async (date: string, time: string, cus
 
         }
         await transporter.sendMail(mailOptions);
-        console.log("✅ Admin email sent successfully");
+        console.log("✅ Reminder email sent successfully");
     }
     catch (error) {
         console.error("⚠️ Failed to send admin email: ", error);
