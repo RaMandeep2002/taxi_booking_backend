@@ -1246,7 +1246,6 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       {
         $sort: {
           pickupDate: -1,
-          pickuptime: -1, // Also sort by pickuptime descending for more accurate ordering
         },
       },
 
