@@ -1243,22 +1243,22 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       },
 
       // Sort by latest bookings (newest first based on creation date)
-      {
-        $addFields: {
-          pickupDateISO: {
-            $dateFromString: {
-              dateString: "$pickupDate",
-              format: "%m/%d/%Y",
-            },
-          },
-        },
-      },
-      // Sort by converted pickupDateISO
-      {
-        $sort: {
-          pickupDateISO: -1,
-        },
-      },
+      // {
+      //   $addFields: {
+      //     pickupDateISO: {
+      //       $dateFromString: {
+      //         dateString: "$pickupDate",
+      //         format: "%m/%d/%Y",
+      //       },
+      //     },
+      //   },
+      // },
+      // // Sort by converted pickupDateISO
+      // {
+      //   $sort: {
+      //     pickupDateISO: -1,
+      //   },
+      // },
 
       // Deduplicate based on bookingId
       {
