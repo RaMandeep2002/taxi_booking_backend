@@ -1245,7 +1245,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       // Sort by latest bookings (newest first based on creation date)
       {
         $sort: {
-          pickupTimeFormatted: -1, // descending; newest pickups first
+          updatedAt: -1, // descending; newest pickups first
         },
       },
 
@@ -1262,6 +1262,8 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
         },
       },
     ]);
+
+    console.log("booking data ===> ", bookings)
 
     if (!bookings || !bookings.length) {
       res.status(404).json({ message: "No booking found!" });
