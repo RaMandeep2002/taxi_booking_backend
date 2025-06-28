@@ -11,10 +11,8 @@ export const sendEmailMessage = async (date: string, time: string, customerName:
         const transporter = nodemailer.createTransport({
             service: "gmail",
             auth: {
-                // user: process.env.EMAIL_USER,
-                // pass: process.env.EMAIL_PASSWORD
-                user: "salmonarmtaxis@gmail.com",
-                pass: "pnludxmowqpqxpdj"
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
             }
         });
 
@@ -54,10 +52,8 @@ export const sendEmailMessageBeforeTime = async (date: string, time: string, cus
         const transporter = nodemailer.createTransport({
             service: "gmail",
             auth: {
-                // user: process.env.EMAIL_USER,
-                // pass: process.env.EMAIL_PASSWORD
-                user: "salmonarmtaxis@gmail.com",
-                pass: "pnludxmowqpqxpdj"
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
             }
         });
 
@@ -93,10 +89,8 @@ export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath:
         const transporter = nodemailer.createTransport({
             service: "gmail",
             auth: {
-                // user: process.env.EMAIL_USER,
-                // pass: process.env.EMAIL_PASSWORD
-                user: "salmonarmtaxis@gmail.com",
-                pass: "pnludxmowqpqxpdj"
+                user: process.env.EMAIL_USER,
+                pass: process.env.EMAIL_PASSWORD
             }
         });
 
