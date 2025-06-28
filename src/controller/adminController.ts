@@ -1244,8 +1244,19 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
 
       // Sort by latest bookings (newest first based on creation date)
       {
+        $addFields: {
+          pickupDateISO: {
+            $dateFromString: {
+              dateString: "$pickupDate",
+              format: "%m/%d/%Y",
+            },
+          },
+        },
+      },
+      // Sort by converted pickupDateISO
+      {
         $sort: {
-          updatedAt: -1, // descending; newest pickups first
+          pickupDateISO: -1,
         },
       },
 
