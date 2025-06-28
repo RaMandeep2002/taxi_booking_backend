@@ -1274,6 +1274,15 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       },
     ]);
 
+
+
+
+    bookings.sort((a, b) => {
+      const dateA = new Date(a.pickupDate); // convert pickupDate string to Date
+      const dateB = new Date(b.pickupDate);
+      return dateB.getTime() - dateA.getTime(); // descending order: newest first
+    });
+
     console.log("booking data ===> ", bookings)
 
     if (!bookings || !bookings.length) {
