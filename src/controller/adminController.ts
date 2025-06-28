@@ -18,10 +18,10 @@ import fs from "fs";
 import { format } from "fast-csv";
 import { parse } from "date-fns";
 import cron from "node-cron";
-import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
+import { sendWhatsappMessage } from "../utils/whatsappMessageSender"; 
 import { sendBookingsDetailsReportEmail, sendEmailMessage, sendEmailMessageBeforeTime } from "../utils/emailMessageSender";
 import path from "path";
-import { record } from "zod";
+import { toZonedTime } from "date-fns-tz";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
@@ -1506,8 +1506,11 @@ export const scheduleRide = async (req: Request, res: Response) => {
     console.log("time ---> ", time);
     const dateTimeString = `${date} ${time}`;
     console.log("dateTimeString ---> ", dateTimeString);
-    const rideDateTime = parse(dateTimeString, "MM/dd/yyyy hh:mma", new Date());
-    console.log("ride date time ---> ", rideDateTime);
+    const nativeDate = parse(dateTimeString, "MM/dd/yyyy hh:mma", new Date());
+    console.log("nativeDate date time ---> ", nativeDate);
+    const rideDateTime = toZonedTime(nativeDate, "Asia/Kolkata");
+    console.log("ride date time ---> ", nativeDate);
+    
 
 
     if (isNaN(rideDateTime.getTime())) {
