@@ -1517,7 +1517,7 @@ export const scheduleRide = async (req: Request, res: Response) => {
     }
 
 
-    const notifyTime = new Date(rideDateTime.getTime() - 10 * 60 * 1000);
+    const notifyTime = new Date(rideDateTime.getTime() - 1 * 60 * 1000);
     console.log("notifyTime ---> ", notifyTime);
 
     const getcronTime = getCronTime(notifyTime);
