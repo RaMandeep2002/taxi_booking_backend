@@ -1523,6 +1523,10 @@ export const scheduleRide = async (req: Request, res: Response) => {
     const notifyTime = new Date(rideDateTime.getTime() - 1 * 60 * 1000);
     console.log("notifyTime ---> ", notifyTime);
 
+    const notifyTimeZone = toZonedTime(notifyTime, "Asia/Kolkata");
+    console.log("notifyTimeZone ---> ", notifyTimeZone);
+    
+
     const getcronTime = getCronTime(notifyTime);
     console.log("getcronTime ---> ", getcronTime)
 
