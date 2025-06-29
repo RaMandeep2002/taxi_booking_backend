@@ -1506,21 +1506,28 @@ export const scheduleRide = async (req: Request, res: Response) => {
     console.log("time ---> ", time);
     const dateTimeString = `${date} ${time}`;
     console.log("dateTimeString ---> ", dateTimeString);
+
+
     const nativeDate = parse(dateTimeString, "MM/dd/yyyy hh:mma", new Date());
     console.log("nativeDate date time ---> ", nativeDate);
-    const rideDateTime = toZonedTime(nativeDate, "Asia/Kolkata");
-    console.log("ride date time ---> ", nativeDate);
+
+    
+    const rideDateTimeIST = toZonedTime(nativeDate, "Asia/Kolkata");
+    console.log("ride date time ---> ", rideDateTimeIST);
     
 
+    const rideDateTimeUTC = new Date(rideDateTimeIST.getTime());
+    console.log("rideDateTime in UTC (correct):", rideDateTimeUTC.toISOString());
 
-    if (isNaN(rideDateTime.getTime())) {
+
+    if (isNaN(rideDateTimeUTC.getTime())) {
       console.error("Invalid ride date/time format.");
       res.status(400).json({ message: "Invalid date or time format." });
       return;
     }
 
 
-    const notifyTime = new Date(rideDateTime.getTime() - 1 * 60 * 1000);
+    const notifyTime = new Date(rideDateTimeUTC.getTime() - 1 * 60 * 1000);
     console.log("notifyTime ---> ", notifyTime.toISOString());
 
     // const notifyTimeZone = toZonedTime(notifyTime, "Asia/Kolkata");
