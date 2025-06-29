@@ -18,10 +18,10 @@ import fs from "fs";
 import { format } from "fast-csv";
 import { parse } from "date-fns";
 import cron from "node-cron";
-import { sendWhatsappMessage } from "../utils/whatsappMessageSender"; 
+import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
 import { sendBookingsDetailsReportEmail, sendEmailMessage, sendEmailMessageBeforeTime } from "../utils/emailMessageSender";
 import path from "path";
-import { toZonedTime } from "date-fns-tz";
+import { record } from "zod";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
@@ -1506,33 +1506,19 @@ export const scheduleRide = async (req: Request, res: Response) => {
     console.log("time ---> ", time);
     const dateTimeString = `${date} ${time}`;
     console.log("dateTimeString ---> ", dateTimeString);
+    const rideDateTime = parse(dateTimeString, "MM/dd/yyyy hh:mma", new Date());
+    console.log("ride date time ---> ", rideDateTime);
 
 
-    const nativeDate = parse(dateTimeString, "MM/dd/yyyy hh:mma", new Date());
-    console.log("nativeDate date time ---> ", nativeDate);
-
-    
-    const rideDateTimeIST = toZonedTime(nativeDate, "Asia/Kolkata");
-    console.log("ride date time ---> ", rideDateTimeIST);
-    
-
-    const rideDateTimeUTC = new Date(rideDateTimeIST.getTime());
-    console.log("rideDateTime in UTC (correct):", rideDateTimeUTC.toISOString());
-
-
-    if (isNaN(rideDateTimeUTC.getTime())) {
+    if (isNaN(rideDateTime.getTime())) {
       console.error("Invalid ride date/time format.");
       res.status(400).json({ message: "Invalid date or time format." });
       return;
     }
 
 
-    const notifyTime = new Date(rideDateTimeUTC.getTime() - 1 * 60 * 1000);
-    console.log("notifyTime ---> ", notifyTime.toISOString());
-
-    // const notifyTimeZone = toZonedTime(notifyTime, "Asia/Kolkata");
-    // console.log("notifyTimeZone ---> ", notifyTimeZone);
-    
+    const notifyTime = new Date(rideDateTime.getTime() - 10 * 60 * 1000);
+    console.log("notifyTime ---> ", notifyTime);
 
     const getcronTime = getCronTime(notifyTime);
     console.log("getcronTime ---> ", getcronTime)
