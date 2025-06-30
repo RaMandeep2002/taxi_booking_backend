@@ -1525,7 +1525,7 @@ export const scheduleRide = async (req: Request, res: Response) => {
 
     // const messageBody = `🚕 *Upcoming Ride Reminder*\n\n📅 Date: ${date}\n🕒 Time: ${time}\n👤 Customer: ${customerName}\n📞 Phone: ${customer_phone_number}`;
 
-    // await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+    await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
 
     // await sendEmailMessageBeforeTime(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
     
