@@ -21,6 +21,7 @@ import cron from "node-cron";
 import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
 import { sendBookingsDetailsReportEmail, sendEmailMessage, sendEmailMessageBeforeTime } from "../utils/emailMessageSender";
 import path from "path";
+import {toZonedTime} from "date-fns-tz";
 import { record } from "zod";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
@@ -1517,7 +1518,18 @@ export const scheduleRide = async (req: Request, res: Response) => {
     }
 
 
-    const notifyTime = new Date(rideDateTime.getTime() - 10 * 60 * 1000);
+    // Convert the rideDateTime (assumed to be in local/server time) to PDT
+    const pdtTimeZone = 'America/Vancouver';
+    const rideDateTimeInPDT = toZonedTime(rideDateTime, pdtTimeZone);
+
+    // Subtract 10 minutes in PDT
+    const notifyTimeInPDT = new Date(rideDateTimeInPDT.getTime() - 10 * 60 * 1000);
+
+    // If you need to convert notifyTimeInPDT back to UTC for cron or storage:
+    // const notifyTime = zonedTimeToUtc(notifyTimeInPDT, pdtTimeZone);
+
+    // For cron, you likely want the PDT time:
+    const notifyTime = notifyTimeInPDT;
     console.log("notifyTime ---> ", notifyTime);
 
     const getcronTime = getCronTime(notifyTime);
