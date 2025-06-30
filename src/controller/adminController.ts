@@ -1517,7 +1517,6 @@ export const scheduleRide = async (req: Request, res: Response) => {
       return;
     }
 
-
     // Convert the rideDateTime (assumed to be in local/server time) to PDT
     const pdtTimeZone = 'America/Vancouver';
     const rideDateTimeInPDT = toZonedTime(rideDateTime, pdtTimeZone);
