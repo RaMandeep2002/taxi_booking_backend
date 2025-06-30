@@ -1528,18 +1528,18 @@ export const scheduleRide = async (req: Request, res: Response) => {
     await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
 
     // await sendEmailMessageBeforeTime(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+    await sendEmailMessageBeforeTime(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
     
-    cron.schedule(getCronTime(notifyTime), async () => {
-      console.log("enter is cron");
-      try {
-        // await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
-        await sendEmailMessageBeforeTime(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
-        console.log("Message sent successfully!!");
-      }
-      catch (error) {
-          console.log("Error Sending message!!");
-        }
-      })
+    // cron.schedule(getCronTime(notifyTime), async () => {
+    //   console.log("enter is cron");
+    //   try {
+    //     // await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+    //     console.log("Message sent successfully!!");
+    //   }
+    //   catch (error) {
+    //       console.log("Error Sending message!!");
+    //     }
+    //   })
           // await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
 
     res.status(201).json({
