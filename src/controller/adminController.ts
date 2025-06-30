@@ -1523,25 +1523,20 @@ export const scheduleRide = async (req: Request, res: Response) => {
     const getcronTime = getCronTime(notifyTime);
     console.log("getcronTime ---> ", getcronTime)
 
-    // const messageBody = `🚕 *Upcoming Ride Reminder*\n\n📅 Date: ${date}\n🕒 Time: ${time}\n👤 Customer: ${customerName}\n📞 Phone: ${customer_phone_number}`;
-
     await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
-
-    // await sendEmailMessageBeforeTime(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
-    await sendEmailMessageBeforeTime(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
     
-    // cron.schedule(getCronTime(notifyTime), async () => {
-    //   console.log("enter is cron");
-    //   try {
-    //     // await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
-    //     console.log("Message sent successfully!!");
-    //   }
-    //   catch (error) {
-    //       console.log("Error Sending message!!");
-    //     }
-    //   })
-          // await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
-
+    cron.schedule(getCronTime(notifyTime), async () => {
+      console.log("enter is cron");
+      try {
+        // await sendWhatsappMessage(adminWhatsAppNumber, date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+        await sendEmailMessageBeforeTime(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
+        console.log("Message sent successfully!!");
+      }
+      catch (error) {
+          console.log("Error Sending message!!");
+        }
+      })
+        
     res.status(201).json({
       message: "Ride scheduled successfully!",
       scheduledRide,
