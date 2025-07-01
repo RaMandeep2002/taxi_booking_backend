@@ -1017,9 +1017,15 @@ export const generateAndSendReport = async () => {
   try {
     const today = new Date();
     console.log("Today ==> ", today);
-    const fromDate = new Date(today.getFullYear(), today.getMonth() -1 , 1);
+
+    // Get previous month (1st day)
+    const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+    const prevMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+    const fromDate = new Date(prevMonthYear, prevMonth, 1);
     console.log("Form date ===> ", fromDate);
-    const toDate = new Date(today.getFullYear() , today.getMonth(),0);
+
+    // Get previous month (last day)
+    const toDate = new Date(prevMonthYear, prevMonth + 1, 0);
     console.log("To date ===> ", toDate);
 
     const bookings = await BookingModels.aggregate([
