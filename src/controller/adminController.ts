@@ -21,7 +21,7 @@ import cron from "node-cron";
 import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
 import { sendBookingsDetailsReportEmail, sendEmailMessage, sendEmailMessageBeforeTime } from "../utils/emailMessageSender";
 import path from "path";
-import {toZonedTime} from "date-fns-tz";
+import { toZonedTime } from "date-fns-tz";
 import { record } from "zod";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
@@ -1018,24 +1018,31 @@ export const generateAndSendReport = async () => {
     const today = new Date();
     console.log("Today ==> ", today);
 
-    // Get previous month (1st day)
-    // Get the first day of 6 months ago
-    const fromDate = new Date(today.getFullYear(), today.getMonth() - 5, 1);
-    console.log("Form date ===> ", fromDate);
+    // Calculate previous month (if today is July, previous month is June)
+    const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+    const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
 
-    // Get the last day of the previous month
-    const toDate = new Date(today.getFullYear(), today.getMonth(), 0);
+    // First day of the previous month
+    const fromDate = new Date(year, prevMonth, 1);
+
+    // Last day of the previous month
+    const toDate = new Date(year, prevMonth + 1, 0);
+
+    console.log("From date ===> ", fromDate);
     console.log("To date ===> ", toDate);
 
+    console.log("fromDate.toISOString() ---> ", fromDate.toISOString());
+    console.log("toDate.toISOString() ---> ", toDate.toISOString());
+
     const bookings = await BookingModels.aggregate([
-      // {
-      //   $match: {
-      //     pickupDate: {
-      //       $gte: fromDate.toISOString(),
-      //       $lte: toDate.toISOString(),
-      //     },
-      //   },
-      // },
+      {
+        $match: {
+          pickupDate: {
+            $gte: fromDate.toISOString(),
+            $lte: toDate.toISOString(),
+          },
+        },
+      },
       {
         $lookup: {
           from: "drivers",
@@ -1159,18 +1166,18 @@ export const generateAndSendReport = async () => {
 };
 
 
-export const gettingReportAndSendEmail = async(req:Request, res:Response) =>{
-  try{
+export const gettingReportAndSendEmail = async (req: Request, res: Response) => {
+  try {
     const result = await generateAndSendReport();
 
     res.status(200).json({
-      message:"Report generator and Emailed successfully!",
-      recordcount : result?.recordCount,
+      message: "Report generator and Emailed successfully!",
+      recordcount: result?.recordCount,
       emailSent: true
     })
-  }catch(error){
+  } catch (error) {
     console.error("Error in generating report and sending email:", error);
-    res.status(500).json({message:"Internal server error", error})
+    res.status(500).json({ message: "Internal server error", error })
   }
 }
 
@@ -1543,7 +1550,7 @@ export const scheduleRide = async (req: Request, res: Response) => {
     console.log("getcronTime ---> ", getcronTime)
 
     await sendEmailMessage(date, time, customerName, customer_phone_number, pickupAddress, dropOffAddress);
-    
+
     cron.schedule(getCronTime(notifyTime), async () => {
       console.log("enter is cron");
       try {
@@ -1552,10 +1559,10 @@ export const scheduleRide = async (req: Request, res: Response) => {
         console.log("Message sent successfully!!");
       }
       catch (error) {
-          console.log("Error Sending message!!");
-        }
-      })
-        
+        console.log("Error Sending message!!");
+      }
+    })
+
     res.status(201).json({
       message: "Ride scheduled successfully!",
       scheduledRide,
