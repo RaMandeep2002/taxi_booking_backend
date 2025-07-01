@@ -21,7 +21,7 @@ import cron from "node-cron";
 import { sendWhatsappMessage } from "../utils/whatsappMessageSender";
 import { sendBookingsDetailsReportEmail, sendEmailMessage, sendEmailMessageBeforeTime } from "../utils/emailMessageSender";
 import path from "path";
-import { toZonedTime } from "date-fns-tz";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { record } from "zod";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
@@ -1030,6 +1030,11 @@ export const generateAndSendReport = async () => {
 
     console.log("From date ===> ", fromDate);
     console.log("To date ===> ", toDate);
+
+    const IST = 'Asia/Kolkata';
+
+    console.log('fromDate in IST:', formatInTimeZone(fromDate, IST, 'yyyy-MM-dd HH:mm:ssXXX'));
+    console.log('toDate in IST:', formatInTimeZone(toDate, IST, 'yyyy-MM-dd HH:mm:ssXXX'));
 
     console.log("fromDate.toISOString() ---> ", fromDate.toISOString());
     console.log("toDate.toISOString() ---> ", toDate.toISOString());
