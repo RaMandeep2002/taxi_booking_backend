@@ -15,7 +15,7 @@ cron.schedule("0 0 1 * *", async () => {
 
 
 
-cron.schedule("*/5 * * * * *", async () => {
-    console.log("📅 Running monthly report cron job every 5 seconds...");
-    await generateAndSendReport();
-});
+// cron.schedule("*/5 * * * * *", async () => {
+//     console.log("📅 Running monthly report cron job every 5 seconds...");
+//     await generateAndSendReport();
+// });
