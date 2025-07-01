@@ -1028,14 +1028,14 @@ export const generateAndSendReport = async () => {
     console.log("To date ===> ", toDate);
 
     const bookings = await BookingModels.aggregate([
-      {
-        $match: {
-          pickupDate: {
-            $gte: fromDate.toISOString(),
-            $lte: toDate.toISOString(),
-          },
-        },
-      },
+      // {
+      //   $match: {
+      //     pickupDate: {
+      //       $gte: fromDate.toISOString(),
+      //       $lte: toDate.toISOString(),
+      //     },
+      //   },
+      // },
       {
         $lookup: {
           from: "drivers",
