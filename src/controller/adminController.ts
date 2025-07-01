@@ -1018,6 +1018,9 @@ export const generateAndSendReport = async () => {
     const today = new Date();
     console.log("Today ==> ", today);
 
+    const month = today.getMonth();
+    console.info("month -----> ", month)
+
     // Calculate previous month (if today is July, previous month is June)
     const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
     const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
