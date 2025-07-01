@@ -1083,7 +1083,10 @@ export const generateAndSendReport = async () => {
       },
     ]);
 
+    console.table(bookings);
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    console.log("timestamps ---> ", timestamp)
     const filename = `booking_${timestamp}.csv`;
     const filepath = path.resolve(__dirname, "..", 'temp', filename);
 
