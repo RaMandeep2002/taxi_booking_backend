@@ -1044,10 +1044,20 @@ export const generateAndSendReport = async () => {
 
     const bookings = await BookingModels.aggregate([
       {
+        $addFields: {
+          pickupDateObj: {
+            $dateFromString: {
+              dateString: "$pickupDate",
+              format: "%m/%d/%Y",
+            }
+          }
+        }
+      },
+      {
         $match: {
-          pickupDate: { 
-            $gte: fromDate.toISOString(),
-            $lte: toDate.toISOString(),
+          pickupDateObj: {
+            $gte: new Date(fromDate),
+            $lte: new Date(toDate),
           },
         },
       },
