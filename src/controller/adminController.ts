@@ -1284,7 +1284,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       return dateB.getTime() - dateA.getTime(); // descending order: newest first
     });
 
-    console.log("booking data ===> ", bookings)
+    // console.log("booking data ===> ", bookings)
 
     if (!bookings || !bookings.length) {
       res.status(404).json({ message: "No booking found!" });
