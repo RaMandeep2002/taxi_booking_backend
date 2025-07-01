@@ -1031,10 +1031,10 @@ export const generateAndSendReport = async () => {
     console.log("From date ===> ", fromDate);
     console.log("To date ===> ", toDate);
 
-    const IST = 'Asia/Kolkata';
+    const PDT =  'America/Vancouver';
 
-    console.log('fromDate in IST:', formatInTimeZone(fromDate, IST, 'yyyy-MM-dd HH:mm:ssXXX'));
-    console.log('toDate in IST:', formatInTimeZone(toDate, IST, 'yyyy-MM-dd HH:mm:ssXXX'));
+    console.log('fromDate in IST:', formatInTimeZone(fromDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
+    console.log('toDate in IST:', formatInTimeZone(toDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
 
     console.log("fromDate.toISOString() ---> ", fromDate.toISOString());
     console.log("toDate.toISOString() ---> ", toDate.toISOString());
@@ -1042,7 +1042,7 @@ export const generateAndSendReport = async () => {
     const bookings = await BookingModels.aggregate([
       {
         $match: {
-          pickupDate: {
+          pickupDate: { 
             $gte: fromDate.toISOString(),
             $lte: toDate.toISOString(),
           },
