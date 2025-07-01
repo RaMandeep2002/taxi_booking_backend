@@ -1019,13 +1019,12 @@ export const generateAndSendReport = async () => {
     console.log("Today ==> ", today);
 
     // Get previous month (1st day)
-    const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-    const prevMonthYear = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
-    const fromDate = new Date(prevMonthYear, prevMonth, 1);
+    // Get the first day of 6 months ago
+    const fromDate = new Date(today.getFullYear(), today.getMonth() - 5, 1);
     console.log("Form date ===> ", fromDate);
 
-    // Get previous month (last day)
-    const toDate = new Date(prevMonthYear, prevMonth + 1, 0);
+    // Get the last day of the previous month
+    const toDate = new Date(today.getFullYear(), today.getMonth(), 0);
     console.log("To date ===> ", toDate);
 
     const bookings = await BookingModels.aggregate([
