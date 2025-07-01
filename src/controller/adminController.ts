@@ -1015,8 +1015,11 @@ export const gettingReport = async (req: Request, res: Response) => {
 
 export const generateAndSendReport = async () => {
   try {
-    const today = new Date();
-    console.log("Today ==> ", today);
+    // Use local time (PDT) for "today"
+    const PDTDATE = 'America/Vancouver';
+    const now = new Date();
+    const today = toZonedTime(now, PDTDATE);
+    console.log("Today (PDT) ==> ", today);
 
     const month = today.getMonth();
     console.info("month -----> ", month)
