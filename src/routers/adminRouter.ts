@@ -32,10 +32,14 @@ import {
   scheduleRide,
   resetPassword,
   gettingReportAndSendEmail,
+  getAllAdminInfo,
+  stopAllShift,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
 const router = express.Router();
+
+router.get("/allAdminInfo", getAllAdminInfo)
 
 router.get("/adminInfo", authenticate, authorize(["admin"]), getAdminInfo);
 router.post("/add-driver", authenticate, authorize(["admin"]), adddriver);
@@ -146,6 +150,8 @@ router.put("/settings", authenticate, authorize(["admin"]), updateSettings);
 router.get("/settings", getsetting);
 
 router.post("/scheduleRide", authenticate, authorize(["admin"]), scheduleRide);
+
+router.post("/stopAllShifts", stopAllShift);
 
 router.get("/shiftsHistory",getAllShifts12)
 router.get("/getallshiftwithdriverandvehicle", getDriverWithAssignedVehicle)

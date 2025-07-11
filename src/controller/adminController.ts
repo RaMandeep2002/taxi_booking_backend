@@ -54,6 +54,23 @@ const generateRandomRegistrationNumber = () => {
 //     throw new Error("Failed to fetch admin information");
 //   }
 // };
+
+export const getAllAdminInfo = async(req:Request, res:Response) =>{
+  console.log("admin")
+  try{
+    const admin = await User.find({role: Roles.Admin});
+    console.table(admin)
+    if(!admin){
+      res.status(404).json({message:"No admin information found!!"});
+      return;
+    }
+    res.status(200).json({message:"Admin info", data:admin});
+  }catch(error){
+    res.status(500).json({message:"Error for Fetching the Admin details!!", error});
+  }  
+
+}
+
 export const getAdminInfo = async (
   req: AuthRequest,
   res: Response,
@@ -1781,3 +1798,83 @@ export const stopshiftbyadmin = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Something went wrong!!", error });
   }
 }
+
+
+export const stopAllShift = async (req: Request, res: Response) => {
+  try {
+
+    const {endTime, endDate} = req.body;
+
+    console.log("EndTime --> ", endTime);
+    console.log("endDate --> ", endDate);
+    // Find all active shifts
+    const activeShifts = await Shift.find({ isActive: true });
+
+    if (!activeShifts.length) {
+       res.status(200).json({ message: "No active shifts to stop." });
+       return;
+    }
+
+    // const activeBooking = await BookingModels.find({status:{$in: "ongoing"}});
+
+    // if(activeBooking){
+    //   res.status(400).json({message:"You cannot stop the shift while driver has an active ride in progress!"});
+    //   return;
+    // }
+
+    // const now = new Date();
+    const updates = [];
+
+    for (const shift of activeShifts) {
+      // Calculate duration
+      const start = parse(`${shift.startDate} ${shift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
+      console.log("start -------> ", start);
+      const end = parse(`${endDate} ${endTime}`, "MM/dd/yyyy hh:mma", new Date());
+      console.log("end -------> ", end);
+
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        res.status(400).json({ message: "Invalid date/time format" });
+        return;
+      }
+
+      const durationMs = end.getTime() - start.getTime();
+      const hours = Math.floor(durationMs / (1000 * 60 * 60));
+      const minutes = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+      shift.endTime = endTime;
+      // Format end date as MM/DD/YYYY (e.g., 07/02/2025)
+      const month = String(end.getMonth() + 1).padStart(2, '0');
+      const day = String(end.getDate()).padStart(2, '0');
+      const year = end.getFullYear();
+      shift.endDate = endDate;
+      shift.endTimeFormatted = end.toISOString();
+      shift.endMonth = end.toLocaleString('default', { month: 'long' });
+      shift.isActive = false;
+      shift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
+      shift.isStopedByAdmin = true;
+
+      // Unassign vehicle if assigned
+      if (shift.vehicleUsed) {
+        const vehicle = await Vehicle.findById(shift.vehicleUsed);
+        if (vehicle) {
+          vehicle.isAssigned = false;
+          await vehicle.save();
+        }
+      }
+
+      updates.push(shift.save());
+      console.log("shifts ---> ", shift);
+    }
+
+
+    await Promise.all(updates);
+
+    res.status(200).json({
+      message: "✅ All active shifts have been stopped successfully.",
+      stoppedShifts: activeShifts.length,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Failed to stop all active shifts.", error });
+  }
+};

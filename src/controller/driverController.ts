@@ -421,10 +421,25 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
       return;
     }
 
+    // --- Stop ongoing booking for the driver ---
+    // Find the ongoing booking for this driver
+    // const ongoingBooking = await BookingModels.findOne({ driver: driver._id, status: "ongoing" });
+    // if (ongoingBooking) {
+    //   // Set dropOff location same as pickup location
+    //   ongoingBooking.dropOff = {
+    //     latitude: ongoingBooking.pickup.latitude,
+    //     longitude: ongoingBooking.pickup.longitude,
+    //     address: ongoingBooking.pickup.address
+    //   };
+    //   ongoingBooking.status = "completed";
+    //   ongoingBooking.dropdownTime = "0";
+    //   ongoingBooking.dropdownDate = "0";
+    //   await ongoingBooking.save();
+    // }
+
+    // --- End shift as before ---
     const start = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
-    console.log(`start ----- > ${start}`)
     const end = parse(`${endDate} ${endTime}`, "MM/dd/yyyy hh:mma", new Date());
-    console.log(`end ----- > ${end}`)
 
     if (isNaN(start.getTime()) || isNaN(end.getTime())) {
       res.status(400).json({ message: "Invalid date/time format" });
@@ -432,7 +447,6 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
     }
 
     const durationMs = end.getTime() - start.getTime();
-    console.log(`durationMs ----- > ${durationMs}`)
 
     if (durationMs < 0) {
       res.status(400).json({ message: "End time must be after start time" });
@@ -464,6 +478,7 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
       message: "Shift ended successfully",
       shift: activeShift,
       shiftDuration: activeShift.totalDuration,
+      // bookingStopped: ongoingBooking ? ongoingBooking : null,
     });
 
   } catch (error) {
@@ -561,19 +576,27 @@ export const start_Ride = async (req: Request, res: Response) => {
       return;
     }
 
-    console.log("driver ------> ", driver);
-    // console.log("activeShift.isStopedByAdmin ------> ",activeShift.isStopedByAdmin);
+    // Check if there is already an ongoing ride for this driver
+    const ongoingBooking = await BookingModels.findOne({
+      driver: driver._id,
+      status: "ongoing"
+    });
+
+    if (ongoingBooking) {
+      // If an ongoing ride exists, continue the ride and return its details
+      res.status(200).json({
+        message: "Ride is already ongoing. Continuing the ride.",
+        booking: ongoingBooking
+      });
+      return;
+    }
 
     const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
-
-    console.log("activeShift ------> ", activeShift);
 
     if (!activeShift) {
       res.status(400).json({ message: "Shift ended by Admin , Please start new shift" });
       return;
     }
-
-    console.log("activeShift ------> ", activeShift)
 
     const now = new Date();
 
@@ -620,10 +643,8 @@ export const start_Ride = async (req: Request, res: Response) => {
 
     const booking = new BookingModels(bookingDoc);
     await booking.save();
-    console.log("booking ===>", booking)
 
     const getbooking = await BookingModels.findOne({ bookingId });
-    console.log("getbooking ===>", getbooking)
     if (!getbooking) {
       res.status(404).json({ message: "no booking found!" });
       return;

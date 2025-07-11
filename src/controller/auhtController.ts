@@ -23,11 +23,86 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = new User({ name, email, password: hashedPassword, role });
     await user.save();
-    res.status(201).json({ message: "User registered successfully" });
+
+
+    const { password: _, ...userWithoutPassword } = user.toObject();
+
+
+    res.status(201).json({
+      message: "User registered successfully",
+      user: userWithoutPassword,
+    });
   } catch (error) {
     res.status(500).json({ message: "Error registering user!", error });
   }
 };
+export const update_user = async(req:Request, res:Response) =>{
+  const userId = req.params.id;
+  const { name, email, password } = req.body;
+  console.table({ name, email, password });
+  
+  try{
+    if(!userId){
+      res.status(400).json({message:"User id Required"});
+      return;
+    }
+
+    const updatedRecord : Record<string, any> = {};
+
+    if(name) updatedRecord.name = name;
+    if(email) updatedRecord.email = email;
+
+    if(password){
+      const hashedPassword = await bcrypt.hash(password, 10);
+      updatedRecord.password = hashedPassword;
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(userId, updatedRecord,  { new: true, runValidators: true });
+
+    console.table({updatedUser});
+
+    if(!updatedUser){
+      res.status(404).json({message:"User not found"});
+      return;
+    }
+
+
+    const { password: _, ...userWithoutPassword } = updatedUser.toObject();
+
+
+    res.status(201).json({
+      message: "User Updated successfully",
+      user: userWithoutPassword,
+    });
+  }
+  catch(error){
+    res.status(500).json({message:"Error updating user!", error})
+  }
+}
+
+
+export const deleteUser = async(req:Request, res:Response) =>{
+  const userId = req.params.id;
+
+try{
+  if(!userId){
+    res.status(400).json({message:"User Id required"});
+    return;
+  }
+
+  const deleteUser = await User.findByIdAndDelete(userId);
+
+  if(!deleteUser){
+    res.status(404).json({message:"user not found!"});
+    return;
+  }
+
+  res.status(200).json({message:"User Deleted Successfully"});
+}catch(error){
+  res.status(500).json({message:"Error deleting user!", error});
+}
+}
+
 
 export const loginuser = async (req: Request, res: Response) => {
 
