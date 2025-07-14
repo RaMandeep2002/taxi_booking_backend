@@ -29,7 +29,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
 
     res.status(201).json({
-      message: "User registered successfully",
+      message: "Admin registered successfully",
       user: userWithoutPassword,
     });
   } catch (error) {
@@ -71,7 +71,7 @@ export const update_user = async(req:Request, res:Response) =>{
 
 
     res.status(201).json({
-      message: "User Updated successfully",
+      message: "Admin Updated successfully",
       user: userWithoutPassword,
     });
   }
@@ -97,7 +97,7 @@ try{
     return;
   }
 
-  res.status(200).json({message:"User Deleted Successfully"});
+  res.status(200).json({message:"Admin Deleted Successfully"});
 }catch(error){
   res.status(500).json({message:"Error deleting user!", error});
 }
