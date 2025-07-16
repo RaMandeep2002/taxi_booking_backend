@@ -460,7 +460,7 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
     activeShift.endTime = endTime;
     activeShift.endDate = endDate;
     activeShift.endTimeFormatted = end.toISOString();
-    activeShift.endMonth = end.toLocaleString('default', { month: 'long' });
+    activeShift.endMonth = end.toLocaleString('default', { month: 'long' });  
     activeShift.isActive = false;
     activeShift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
 
@@ -554,7 +554,8 @@ export const start_Ride = async (req: Request, res: Response) => {
     phoneNumber,
     pickup: { latitude, longitude, address }
   } = req.body;
-
+  
+  console.log("Request body:", req.body);
   // Validate required fields
   if (
     !driverIdIdentity ||
