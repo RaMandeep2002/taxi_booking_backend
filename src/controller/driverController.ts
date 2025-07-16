@@ -578,19 +578,19 @@ export const start_Ride = async (req: Request, res: Response) => {
     }
 
     // Check if there is already an ongoing ride for this driver
-    const ongoingBooking = await BookingModels.findOne({
-      driver: driver._id,
-      status: "ongoing"
-    });
+    // const ongoingBooking = await BookingModels.findOne({
+    //   driver: driver._id,
+    //   status: "ongoing"
+    // });
 
-    if (ongoingBooking) {
-      // If an ongoing ride exists, continue the ride and return its details
-      res.status(200).json({
-        message: "Ride is already ongoing. Continuing the ride.",
-        booking: ongoingBooking
-      });
-      return;
-    }
+    // if (ongoingBooking) {
+    //   // If an ongoing ride exists, continue the ride and return its details
+    //   res.status(200).json({
+    //     message: "Ride is already ongoing. Continuing the ride.",
+    //     booking: ongoingBooking
+    //   });
+    //   return;
+    // }
 
     const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
 
