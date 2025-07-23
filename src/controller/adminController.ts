@@ -1250,11 +1250,10 @@ const parseDate = (dateStr: string): Date => {
   return new Date(`${year}-${month}-${day}T00:00:00Z`);
 };
 
-
 export const getBookingdeteails = async (req: Request, res: Response) => {
   try {
     const bookings = await BookingModels.aggregate([
-      // Join with Driver collection
+      // Lookup driver
       {
         $lookup: {
           from: "drivers",
@@ -1270,32 +1269,23 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
         },
       },
 
-      // Join with Vehicle collection using driver's vehicle
+      // Lookup vehicle from vehicleUsed field in Booking
       {
         $lookup: {
           from: "vehicles",
-          let: { vehicleId: "$driver.vehicle" },
-          pipeline: [
-            {
-              $match: {
-                $expr: {
-                  $eq: ["$_id", "$$vehicleId"],
-                },
-              },
-            },
-            { $limit: 1 },
-          ],
-          as: "driver.vehicles",
+          localField: "vehicleUsed", // <-- use vehicleUsed from Booking
+          foreignField: "_id",
+          as: "vehicle",
         },
       },
       {
         $unwind: {
-          path: "$driver.vehicles",
+          path: "$vehicle",
           preserveNullAndEmptyArrays: true,
         },
       },
 
-      // Select only necessary fields
+      // Final fields to include
       {
         $project: {
           bookingId: 1,
@@ -1315,30 +1305,13 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           paymentStatus: 1,
           status: 1,
           "driver.drivername": 1,
-          "driver.vehicles.company": 1,
-          "driver.vehicles.vehicleModel": 1,
+          "vehicle.company": 1,
+          "vehicle.vehicleModel": 1,
+          // "vehicle.licensePlate": 1,
         },
       },
 
-      // Sort by latest bookings (newest first based on creation date)
-      // {
-      //   $addFields: {
-      //     pickupDateISO: {
-      //       $dateFromString: {
-      //         dateString: "$pickupDate",
-      //         format: "%m/%d/%Y",
-      //       },
-      //     },
-      //   },
-      // },
-      // // Sort by converted pickupDateISO
-      // {
-      //   $sort: {
-      //     pickupDateISO: -1,
-      //   },
-      // },
-
-      // Deduplicate based on bookingId
+      // Deduplicate
       {
         $group: {
           _id: "$bookingId",
@@ -1352,32 +1325,31 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       },
     ]);
 
-
-
-
+    // Sort bookings by pickupDate (desc)
     bookings.sort((a, b) => {
-      const dateA = new Date(a.pickupDate); // convert pickupDate string to Date
+      const dateA = new Date(a.pickupDate);
       const dateB = new Date(b.pickupDate);
-      return dateB.getTime() - dateA.getTime(); // descending order: newest first
+      return dateB.getTime() - dateA.getTime();
     });
 
-    // console.log("booking data ===> ", bookings)
-
-    if (!bookings || !bookings.length) {
-      res.status(404).json({ message: "No booking found!" });
-      return;
+    if (!bookings || bookings.length === 0) {
+       res.status(404).json({ message: "No bookings found!" });
+       return;
     }
 
-    res.status(200).json({
+     res.status(200).json({
       message: "Bookings fetched successfully",
-      bookings: bookings,
+      bookings,
       total: bookings.length,
     });
+    return;
   } catch (error) {
     console.error("Error fetching bookings: ", error);
-    res.status(500).json({ message: "Error fetching the booking" });
+     res.status(500).json({ message: "Error fetching the bookings" });
+     return;
   }
 };
+
 
 
 
