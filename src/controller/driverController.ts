@@ -298,18 +298,39 @@ export const activeShift = async (req: Request, res: Response) => {
       driverId: driver._id,
       isActive: true
     }).populate("vehicleUsed");
-
+    
     console.log("exisitingShift ------> ", exisitingShift);
 
+
+    const activeBooking = await BookingModels.findOne({
+      driver: driver._id,
+      status: "ongoing"
+    }).populate("vehicleUsed");
+
     if (!exisitingShift) {
-      res.status(404).json({
+       res.status(404).json({
         message: "No active shift found",
         shift: null,
       });
       return;
     }
 
-    res.status(200).json({ message: "Active shift found", shift: exisitingShift });
+    if (!activeBooking) {
+       res.status(404).json({
+        message: "No ongoing booking found for this shift",
+        shift: exisitingShift,
+        booking: null,
+      });
+      return;
+
+    }
+    
+
+
+    res.status(200).json({ message: "Active shift found",
+      shift: exisitingShift,
+      booking: activeBooking? activeBooking : null
+     });
   } catch (error) {
     res.status(500).json({ message: "Error Fetching Active shifts", error })
   }
