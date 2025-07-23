@@ -17,6 +17,7 @@ import {
   stopShift,
   stopShiftwithtime,
   updateDriverStatus,
+  getActiveRide,
 } from "../controller/driverController";
 import { authenticate } from "../middleware/authMiddleware";
 import { authorize } from "../middleware/roleMiddleware";
@@ -114,6 +115,12 @@ router.post("/CalculateTotalFareApi", CalculateTotalFareApi)
 router.delete("/delete-shifts/:driverId", authenticate, authorize(["driver"]), deteleallShiftsHistory)
 router.get("/getbooking", authenticate, authorize(["driver"]), getAllBookingRider);
 router.get("/settings", getsetting);
+router.get(
+  "/active-ride",
+  authenticate,
+  authorize(["driver"]),
+  getActiveRide
+);
 
 router.post(
   "/logout",

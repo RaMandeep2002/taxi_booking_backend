@@ -322,7 +322,7 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
 //       .json({ success: false, message: "Error fetching drivers", error });
 //   }
 // };
-export const getDriverDetails = async (req: Request, res: Response) => {
+  export const getDriverDetails = async (req: Request, res: Response) => {
   try {
     await redisClinet.del("drivers:list");
     const cacheKey = "drivers:list";
@@ -344,21 +344,48 @@ export const getDriverDetails = async (req: Request, res: Response) => {
     const emails = drivers.map((driver) => driver.email);
     const users = await User.find({ email: { $in: emails } }).select("email password").lean();
 
-    const driverWithPassword = drivers.map((driver) => {
+    // Get all driver IDs for shift aggregation
+    const driverIds = drivers.map((driver) => driver._id);
+
+    // Aggregate total trips and earnings from Shift collection
+    const shiftStats = await Shift.aggregate([
+      { $match: { driverId: { $in: driverIds } } },
+      {
+        $group: {
+          _id: "$driverId",
+          totalTrips: { $sum: "$totalTrips" },
+          totalEarnings: { $sum: "$totalEarnings" }
+        }
+      }
+    ]);
+
+    // Map driverId to stats for quick lookup
+    const statsMap: Record<string, { totalTrips: number; totalEarnings: number }> = {};
+    shiftStats.forEach(stat => {
+      statsMap[stat._id.toString()] = {
+        totalTrips: stat.totalTrips || 0,
+        totalEarnings: stat.totalEarnings || 0
+      };
+    });
+
+    const driverWithStats = drivers.map((driver) => {
       const user = users.find((x) => x.email === driver.email);
+      const stats = statsMap[driver._id.toString()] || { totalTrips: 0, totalEarnings: 0 };
       return {
         ...driver,
         password: user?.password || null,
+        totalTrips: stats.totalTrips,
+        totalEarnings: stats.totalEarnings
       }
-    })
+    });
 
     // Store in Redis for 1 hour
-    await redisClinet.setEx(cacheKey, 3600, JSON.stringify(driverWithPassword));
+    await redisClinet.setEx(cacheKey, 3600, JSON.stringify(driverWithStats));
 
     res.status(200).json({
       success: true,
       message: "Drivers fetched successfully",
-      data: driverWithPassword,
+      data: driverWithStats,
     });
 
   } catch (error) {

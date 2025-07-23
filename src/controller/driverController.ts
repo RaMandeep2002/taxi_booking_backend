@@ -1269,3 +1269,38 @@ export const logout = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Error stopping shift", error });
   }
 };
+
+// Get the active ride (ongoing booking) for the authenticated driver
+export const getActiveRide = async (req: Request, res: Response) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  const driverIdIdentity = getDriverId(token);
+
+  if (!driverIdIdentity) {
+    res.status(401).json({ message: "Invalid or missing token" });
+    return;
+  }
+
+  try {
+    // Find the driver by driverId
+    const driver = await Driver.findOne({ driverId: driverIdIdentity });
+    if (!driver) {
+      res.status(404).json({ message: "Driver not found" });
+      return;
+    }
+
+    // Find the ongoing booking for this driver
+    const activeBooking = await BookingModels.findOne({
+      driver: driver._id,
+      status: "ongoing"
+    }).populate("vehicleUsed");
+
+    if (!activeBooking) {
+      res.status(404).json({ message: "No active ride found" });
+      return;
+    }
+
+    res.status(200).json({ message: "Active ride found", booking: activeBooking });
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching active ride", error });
+  }
+};
