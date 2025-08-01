@@ -1129,6 +1129,8 @@ export const generateAndSendReport = async () => {
           customerName: 1,
           phoneNumber: 1,
           "pickup.address": 1,
+          // To get the dropOff address, project dropOff.address as a separate field
+          dropOffAddress: "$dropOff.address",
           dropOff: 1,
           pickuptime: 1,
           pickupDate: 1,
@@ -1157,6 +1159,24 @@ export const generateAndSendReport = async () => {
       },
     ]);
 
+    bookings.sort((a: any, b: any) => {
+      // Combine pickupDate and pickuptime for full datetime comparison
+      const getDateTime = (booking: any) => {
+        // If pickuptime is present, combine with pickupDate
+        if (booking.pickupDate && booking.pickuptime) {
+          // Try to parse as ISO if possible, else fallback
+          const dateStr = `${booking.pickupDate} ${booking.pickuptime}`;
+          const dateTime = new Date(dateStr);
+          if (!isNaN(dateTime.getTime())) return dateTime;
+        }
+        // Fallback: just use pickupDate
+        return new Date(booking.pickupDate);
+      };
+      const dateA = getDateTime(a);
+      const dateB = getDateTime(b);
+      return dateA.getTime() - dateB.getTime();
+    });
+
     console.table(bookings);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -1181,10 +1201,12 @@ export const generateAndSendReport = async () => {
       "Finish Date": booking.dropdownDate || "N/A",
       "Finish Time": booking.dropdownTime || "N/A",
       "Customer Phone": booking.phoneNumber || "N/A",
-      "Address": booking.pickup?.address || "N/A",
+      "Pickup Address": booking.pickup?.address || "N/A",
+      "DropOff Address": booking.dropOff?.address || "N/A",
       "Vehicle": booking.vehicleUsed?.company || "N/A",
       "Vehicle Number": booking.vehicleUsed?.vehicle_plate_number || "N/A",
-      "Meter": booking.distance || "N/A",
+      "Meter":  booking.totalFare|| "N/A",
+      // "Fare": booking.totalFare || "N/A",
     }));
 
     await new Promise<void>((resolve, reject) => {
@@ -1207,7 +1229,9 @@ export const generateAndSendReport = async () => {
     console.log(`📄 CSV file created: ${filepath}`);
 
     try {
-      await sendBookingsDetailsReportEmail("salmonarmtaxis@gmail.com", filepath);
+      // await sendBookingsDetailsReportEmail("salmonarmtaxis@gmail.com", filepath, ["ramandeepsingh1511@gmail.com"]);
+      await sendBookingsDetailsReportEmail("salmonarmtaxis@gmail.com", filepath, ["ramandeepsingh1511@gmail.com", "CPVData@gov.bc.ca", "Salmonarmtaxi@hotmail.com"]);
+      // await sendBookingsDetailsReportEmail("salmonarmtaxis@gmail.com", filepath, ["ramandeepsingh1511@gmail.com", "Salmonarmtaxi@hotmail.com"]);
       console.log("📧 Report emailed successfully!");
       return { success: true, recordCount: bookings.length }
     } catch (error) {
