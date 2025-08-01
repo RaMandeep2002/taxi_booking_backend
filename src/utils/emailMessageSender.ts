@@ -127,8 +127,7 @@ export const sendEmailMessageBeforeTime = async (date: string, time: string, cus
         console.error("⚠️ Failed to send admin email: ", error);
     }
 }
-
-export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath: string) => {
+export const sendBookingsDetailsReportEmail = async (toEmail: string, filePath: string, ccEmails?: string | string[]) => {
     try {
         const transporter = nodemailer.createTransport({
             service: "gmail",
@@ -140,11 +139,27 @@ export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath:
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
 
-        const mailOptions = {
+        const mailOptions: any = {
             from: `"Salmon Arm Taxi" <${process.env.EMAIL_USER}>`,
-            to: process.env.EMAIL_USER,
+            to: [toEmail, process.env.EMAIL_USER],
             subject: "Monthly Booking Report",
-            text: "Please find attached the booking report for this month.",
+            html: `
+                <div style="font-family: Arial, sans-serif; background: #f4f8fb; padding: 32px;">
+                    <div style="max-width: 520px; margin: 0 auto; background: #fff; border-radius: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.07); padding: 32px;">
+                        <h2 style="color: #1a73e8; text-align: center; margin-bottom: 16px;">📊 Monthly Booking Report</h2>
+                        <p style="font-size: 16px; color: #333; margin-bottom: 18px;">
+                            Dear Admin,
+                        </p>
+                        <p style="font-size: 15px; color: #444; margin-bottom: 18px;">
+                            Please find attached the <strong>monthly booking report</strong> for your review. This report contains all bookings for the previous month, including key details such as Address, driver and vehicle.
+                        </p>
+                        <p style="font-size: 14px; color: #888; text-align: center; margin-top: 32px;">
+                            Thank you for choosing <strong>Salmon Arm Taxi</strong>.<br>
+                            <span style="font-size: 13px;">This is an automated email. Please do not reply directly.</span>
+                        </p>
+                    </div>
+                </div>
+            `,
             attachments: [
                 {
                     filename: `monthly_bookings_reports_${timestamp}.csv`,
@@ -153,6 +168,9 @@ export const sendBookingsDetailsReportEmail = async (toEmaail: string, filePath:
             ],
         };
 
+        if (ccEmails) {
+            mailOptions.bcc = ccEmails;
+        }
 
         await transporter.sendMail(mailOptions);
         console.log("📧 Email sent Successfully!");
