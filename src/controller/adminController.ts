@@ -55,19 +55,19 @@ const generateRandomRegistrationNumber = () => {
 //   }
 // };
 
-export const getAllAdminInfo = async(req:Request, res:Response) =>{
+export const getAllAdminInfo = async (req: Request, res: Response) => {
   console.log("admin")
-  try{
-    const admin = await User.find({role: Roles.Admin});
+  try {
+    const admin = await User.find({ role: Roles.Admin });
     console.table(admin)
-    if(!admin){
-      res.status(404).json({message:"No admin information found!!"});
+    if (!admin) {
+      res.status(404).json({ message: "No admin information found!!" });
       return;
     }
-    res.status(200).json({message:"Admin info", data:admin});
-  }catch(error){
-    res.status(500).json({message:"Error for Fetching the Admin details!!", error});
-  }  
+    res.status(200).json({ message: "Admin info", data: admin });
+  } catch (error) {
+    res.status(500).json({ message: "Error for Fetching the Admin details!!", error });
+  }
 
 }
 
@@ -322,7 +322,7 @@ export const addMultipleDrivers = async (req: Request, res: Response) => {
 //       .json({ success: false, message: "Error fetching drivers", error });
 //   }
 // };
-  export const getDriverDetails = async (req: Request, res: Response) => {
+export const getDriverDetails = async (req: Request, res: Response) => {
   try {
     await redisClinet.del("drivers:list");
     const cacheKey = "drivers:list";
@@ -1078,7 +1078,7 @@ export const generateAndSendReport = async () => {
     console.log("From date ===> ", fromDate);
     console.log("To date ===> ", toDate);
 
-    const PDT =  'America/Vancouver';
+    const PDT = 'America/Vancouver';
 
     console.log('fromDate in IST:', formatInTimeZone(fromDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
     console.log('toDate in IST:', formatInTimeZone(toDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
@@ -1207,7 +1207,11 @@ export const generateAndSendReport = async () => {
     console.log(`📄 CSV file created: ${filepath}`);
 
     try {
-      await sendBookingsDetailsReportEmail("ramandeepsingh1511@gmail.com", filepath);
+      await sendBookingsDetailsReportEmail(
+        "salmonarmtaxis@gmail.com",
+        "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+        filepath
+      );
       console.log("📧 Report emailed successfully!");
       return { success: true, recordCount: bookings.length }
     } catch (error) {
@@ -1345,11 +1349,11 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
     });
 
     if (!bookings || bookings.length === 0) {
-       res.status(404).json({ message: "No bookings found!" });
-       return;
+      res.status(404).json({ message: "No bookings found!" });
+      return;
     }
 
-     res.status(200).json({
+    res.status(200).json({
       message: "Bookings fetched successfully",
       bookings,
       total: bookings.length,
@@ -1357,8 +1361,108 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
     return;
   } catch (error) {
     console.error("Error fetching bookings: ", error);
-     res.status(500).json({ message: "Error fetching the bookings" });
-     return;
+    res.status(500).json({ message: "Error fetching the bookings" });
+    return;
+  }
+};
+
+
+export const getBookingdeteailsone = async (req: Request, res: Response) => {
+
+  const page = Number(req.query.page) || 1;
+  const limit = Number(req.query.limit) || 50;
+  const skip = (page - 1) * limit;
+  try {
+    const result = await BookingModels.aggregate([
+      { $group: { _id: "$bookingId", doc: { $first: "$$ROOT" } } },
+      { $replaceRoot: { newRoot: "$doc" } },
+
+      { $lookup: { from: "drivers", localField: "driver", foreignField: "_id", as: "driver" } },
+      { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+
+      { $lookup: { from: "vehicles", localField: "vehicleUsed", foreignField: "_id", as: "vehicle" } },
+      { $unwind: { path: "$vehicle", preserveNullAndEmptyArrays: true } },
+
+      { $sort: { pickupDate: -1, pickuptime: -1 } },
+
+      {
+        $facet: {
+          totalCount: [{ $count: "count" }],
+          data: [
+            { $skip: skip },
+            { $limit: limit },
+            {  $project: {
+              bookingId: 1,
+              pickup: 1,
+              dropOff: 1,
+              pickuptime: 1,
+              pickupDate: 1,
+              pickupTimeFormatted: 1,
+              pickupMonth: 1,
+              pickupWeek: 1,
+              dropdownDate: 1,
+              dropdownTime: 1,
+              wating_time: 1,
+              wating_time_formated: 1,
+              distance: 1,
+              totalFare: 1,
+              paymentStatus: 1,
+              status: 1,
+              "driver.drivername": 1,
+              "vehicle.company": 1,
+              "vehicle.vehicleModel": 1,
+              // "vehicle.licensePlate": 1,
+             } }
+          ]
+        }
+      }
+    ], { allowDiskUse: true });
+
+    const total = result[0]?.totalCount[0]?.count || 0;
+    const bookings = result[0]?.data || [];
+
+    const totalPages = Math.ceil(total / limit);
+
+    if (page > totalPages && totalPages > 0) {
+      res.status(400).json({
+        message: "Requested page exceeds total pages.",
+        total,
+        page,
+        limit,
+        totalPages,
+        hasMore: false
+      });
+      return;
+    }
+
+    if (!bookings || bookings.length === 0) {
+      res.status(404).json({
+        message: "No bookings found!",  
+        total,
+        page,
+        limit,
+        totalPages,
+        hasMore: false
+      });
+      return;
+    }
+
+    console.log("Bookings ====> ", bookings)
+
+    res.status(200).json({
+      message: "Bookings fetched successfully",
+      bookings,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      hasMore: skip + bookings.length < total
+    });
+    return;
+  } catch (error) {
+    console.error("Error fetching bookings: ", error);
+    res.status(500).json({ message: "Error fetching the bookings" });
+    return;
   }
 };
 
@@ -1814,7 +1918,7 @@ export const stopshiftbyadmin = async (req: Request, res: Response) => {
 export const stopAllShift = async (req: Request, res: Response) => {
   try {
 
-    const {endTime, endDate} = req.body;
+    const { endTime, endDate } = req.body;
 
     console.log("EndTime --> ", endTime);
     console.log("endDate --> ", endDate);
@@ -1822,8 +1926,8 @@ export const stopAllShift = async (req: Request, res: Response) => {
     const activeShifts = await Shift.find({ isActive: true });
 
     if (!activeShifts.length) {
-       res.status(200).json({ message: "No active shifts to stop." });
-       return;
+      res.status(200).json({ message: "No active shifts to stop." });
+      return;
     }
 
     // const activeBooking = await BookingModels.find({status:{$in: "ongoing"}});
