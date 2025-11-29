@@ -1123,6 +1123,16 @@ export const generateAndSendReport = async () => {
         },
       },
       { $unwind: { path: "$vehicleUsed", preserveNullAndEmptyArrays: true } },
+      // Include shift model
+      {
+        $lookup: {
+          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
+          localField: "shift",
+          foreignField: "_id",
+          as: "shift",
+        },
+      },
+      { $unwind: { path: "$shift", preserveNullAndEmptyArrays: true } },
       {
         $project: {
           bookingId: 1,
@@ -1153,6 +1163,11 @@ export const generateAndSendReport = async () => {
           "vehicleUsed.year": 1,
           "vehicleUsed.company": 1,
           "vehicleUsed.vehicle_plate_number": 1,
+          // Add relevant fields from shift model - you can modify fields below as needed
+          "shift.startTime": 1,
+          "shift.startDate": 1,
+          "shift.endTime": 1,
+          "shift.endDate": 1,
         },
       },
     ]);
@@ -1185,6 +1200,10 @@ export const generateAndSendReport = async () => {
       "Vehicle": booking.vehicleUsed?.company || "N/A",
       "Vehicle Number": booking.vehicleUsed?.vehicle_plate_number || "N/A",
       "Meter": booking.distance || "N/A",
+      "Shift Start Time": booking.shift?.startTime || "N/A",
+      "Shift Start Date": booking.shift?.startDate || "N/A",
+      "Shift End Time": booking.shift?.endTime || "N/A",
+      "Shift End Date": booking.shift?.endDate || "N/A",
     }));
 
     await new Promise<void>((resolve, reject) => {
@@ -1207,9 +1226,14 @@ export const generateAndSendReport = async () => {
     console.log(`📄 CSV file created: ${filepath}`);
 
     try {
+      // await sendBookingsDetailsReportEmail(
+      //   "salmonarmtaxis@gmail.com",
+      //   "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+      //   filepath
+      // );
       await sendBookingsDetailsReportEmail(
-        "salmonarmtaxis@gmail.com",
-        "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+        "ramandeepsingh1511@gmail.com",
+        // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
         filepath
       );
       console.log("📧 Report emailed successfully!");
