@@ -23,6 +23,7 @@ import { sendBookingsDetailsReportEmail, sendEmailMessage, sendEmailMessageBefor
 import path from "path";
 import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { record } from "zod";
+import { formatZodErrors } from "../utils/FormatZodError";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
@@ -34,6 +35,10 @@ const generatoRandomCredentials = () => {
 
 const generateRandomRegistrationNumber = () => {
   const registrationNumber = crypto.randomBytes(8).toString("hex");
+  return { registrationNumber };
+};
+const generateRandomRegistrationNumber20 = () => {
+  const registrationNumber = crypto.randomBytes(20).toString("hex");
   return { registrationNumber };
 };
 
@@ -116,11 +121,19 @@ export const adddriver = async (req: Request, res: Response) => {
   const validationResult = DriverAddSchema.safeParse(req.body);
   console.log("validationResult ==> ", validationResult);
   if (!validationResult.success) {
-    res.status(400).json({ errors: validationResult.error.format() });
+
+    const formattedErrors = formatZodErrors(validationResult.error);
+
+    console.log("Format error -----> ", formattedErrors);
+
+    res.status(400).json({
+      success: false,
+      errors: formattedErrors,
+    });
     return;
   }
 
-  const { drivername, email, driversLicenseNumber, phoneNumber, password } =
+  const { drivername, email, driversLicenseNumber, driversLicJur, phoneNumber, password } =
     validationResult.data;
 
   try {
@@ -154,6 +167,7 @@ export const adddriver = async (req: Request, res: Response) => {
       drivername,
       email,
       driversLicenseNumber,
+      driversLicJur,
       phoneNumber,
       password: hashedpassword,
       vehicle: [], // Initialize with an empty array of vehicles
@@ -699,14 +713,22 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
   const validationResult = registerSharedVehicleSchema.safeParse(req.body);
   console.log("validation result ==> ", validationResult);
   if (!validationResult.success) {
-    res.status(400).json({ errors: validationResult.error.errors });
+
+    const formattedErrors = formatZodErrors(validationResult.error);
+
+    console.log("Format error -----> ", formattedErrors);
+
+    res.status(400).json({
+      success: false,
+      errors: formattedErrors,
+    });
     return;
   }
 
-  const { company, vehicleModel, year, vehicle_plate_number } = validationResult.data;
+  const {registrationNumber, company, vehicleModel, year, vehicle_plate_number,vehRegJur, tripTypeCd } = validationResult.data;
 
   try {
-    const { registrationNumber } = generateRandomRegistrationNumber();
+    // const { registrationNumber } = generateRandomRegistrationNumber20();
 
     const newVehicle = new Vehicle({
       registrationNumber,
@@ -714,6 +736,8 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
       vehicleModel,
       year,
       vehicle_plate_number,
+      vehRegJur,
+      tripTypeCd,
       isShared: true,
     });
 
@@ -1156,6 +1180,8 @@ export const generateAndSendReport = async () => {
           "driver.drivername": 1,
           "driver.email": 1,
           "driver.phoneNumber": 1,
+          "driver.driversLicenseNumber": 1,
+          "driver.driversLicJur": 1,
           "driver.status": 1,
           "driver.isOnline": 1,
           "vehicleUsed.registrationNumber": 1,
@@ -1163,7 +1189,9 @@ export const generateAndSendReport = async () => {
           "vehicleUsed.year": 1,
           "vehicleUsed.company": 1,
           "vehicleUsed.vehicle_plate_number": 1,
-          // Add relevant fields from shift model - you can modify fields below as needed
+          "vehicleUsed.vehRegJur": 1,
+          "vehicleUsed.tripTypeCd": 1,
+          "shift._id": 1,
           "shift.startTime": 1,
           "shift.startDate": 1,
           "shift.endTime": 1,
@@ -1186,25 +1214,41 @@ export const generateAndSendReport = async () => {
     }
 
     const csvData = bookings.map(booking => ({
-      "Booking ID": booking.bookingId || "N/A",
-      "Pickup Date": booking.pickupDate || "N/A",
-      "Pickup Time": booking.pickuptime || "N/A",
-      "Pickup Month": booking.pickupMonth || "N/A",
-      "Pickup Week": booking.pickupWeek || "N/A",
-      "Arrived": booking.arrived || "N/A",
-      "Contact": booking.driver?.phoneNumber || "N/A",
-      "Finish Date": booking.dropdownDate || "N/A",
-      "Finish Time": booking.dropdownTime || "N/A",
-      "Customer Phone": booking.phoneNumber || "N/A",
-      "Address": booking.pickup?.address || "N/A",
-      "Vehicle": booking.vehicleUsed?.company || "N/A",
-      "Vehicle Number": booking.vehicleUsed?.vehicle_plate_number || "N/A",
-      "Meter": booking.distance || "N/A",
-      "Shift Start Time": booking.shift?.startTime || "N/A",
-      "Shift Start Date": booking.shift?.startDate || "N/A",
-      "Shift End Time": booking.shift?.endTime || "N/A",
-      "Shift End Date": booking.shift?.endDate || "N/A",
+      "PTNo": "70365",
+      "NSCNo": "20023484",
+      "SvcTypCd": "Taxi",
+      "StartDt": booking.pickupDate || "N/A",
+      "EndDt": booking.dropdownDate || "N/A",
+      "ShiftID": booking.shift?._id?.toString() || "N/A",
+      "VehRegNo": booking.vehicleUsed?.registrationNumber || "N/A",
+      "VehRegJur": booking.vehicleUsed?.vehRegJur || "N/A",
+      "DriversLicNo": booking.driver?.licenseNumber || "N/A",
+      "DriversLicJur": booking.driver?.licenseJurisdiction || "N/A",
+      "ShiftStartDT": booking.shift?.startDate || "N/A",
+      "ShiftEndDT": booking.shift?.endDate || "N/A",
+      "TripID": booking.bookingId || "N/A",
+      "TripTypeCd": booking?.tripTypeCd || "N/A", // or other logic if you want to specify
+      "TripStatusCd": booking.status || "N/A",
+      "VehAssgnmtDt": booking.vehAssignmentDate || "N/A",
+      "VehAssgnmtLat": booking.vehAssignmentLat || "N/A",
+      "VehAssgnmtLng": booking.vehAssignmentLng || "N/A",
+      "PsngrCnt": booking.passengerCount || "1",
+      "TripDurationMins": booking.tripDurationMins || "N/A",
+      "TripDistanceKMs": booking.distance || "N/A",
+      "TtlFareAmt": booking.totalFare || "N/A",
+      "PickupArrDt": booking.pickupArriveDate || "N/A",
+      "PickupDepDt": booking.pickupDepartDate || "N/A",
+      "PickupLat": booking.pickup?.lat || "N/A",
+      "PickupLng": booking.pickup?.lng || "N/A",
+      "DropoffArrDt": booking.dropoffArriveDate || "N/A",
+      "DropoffDepDt": booking.dropoffDepartDate || "N/A",
+      "DropoffLat": booking.dropOff?.lat || "N/A",
+      "DropoffLng": booking.dropOff?.lng || "N/A",
     }));
+
+    // Print top 5 rows of csvData
+    // console.log("< ------------------------- data form the csv file data ------------------------- >");
+    // console.table(csvData.slice(0, 5));
 
     await new Promise<void>((resolve, reject) => {
       const writeStream = fs.createWriteStream(filepath);
@@ -1231,11 +1275,199 @@ export const generateAndSendReport = async () => {
       //   "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
       //   filepath
       // );
-      await sendBookingsDetailsReportEmail(
-        "ramandeepsingh1511@gmail.com",
-        // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
-        filepath
-      );
+        await sendBookingsDetailsReportEmail(
+          "ramandeep.vit@gmail.com",
+          // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+          filepath
+        );
+      console.log("📧 Report emailed successfully!");
+      return { success: true, recordCount: bookings.length }
+    } catch (error) {
+      console.error("📧 Report emailed Failed..");
+      throw error;
+    } finally {
+      try {
+        fs.unlinkSync(filepath);
+        console.log("🗑️ Temporary file cleaned up successfully");
+      } catch (unlinkErr) {
+        console.error("⚠️ Failed to delete temporary file:", unlinkErr);
+      }
+    }
+  } catch (err) {
+    console.error("Error in generating report and sending email:", err);
+    throw err;
+  }
+};
+
+export const generateAndSendReport12 = async () => {
+  try {
+    
+
+    const bookings = await BookingModels.aggregate([
+      {
+        $lookup: {
+          from: "drivers",
+          localField: "driver",
+          foreignField: "_id",
+          as: "driver",
+        },
+      },
+      { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "vehicles",
+          localField: "vehicleUsed",
+          foreignField: "_id",
+          as: "vehicleUsed",
+        },
+      },
+      { $unwind: { path: "$vehicleUsed", preserveNullAndEmptyArrays: true } },
+      // Include shift model
+      {
+        $lookup: {
+          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
+          localField: "shift",
+          foreignField: "_id",
+          as: "shift",
+        },
+      },
+      { $unwind: { path: "$shift", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          bookingId: 1,
+          customerName: 1,
+          phoneNumber: 1,
+          pickup: 1,
+          dropOff: 1,
+          pickuptime: 1,
+          pickupDate: 1,
+          pickupTimeFormatted: 1,
+          dropoffTimeFormatted: 1,
+          pickupMonth: 1,
+          pickupWeek: 1,
+          dropdownDate: 1,
+          dropdownTime: 1,
+          arrived: 1,
+          distance: 1,
+          totalFare: 1,
+          paymentStatus: 1,
+          vehAssgnmtDt:1,
+          tripDurationMins:1,
+          status: 1,
+          "driver.driverId": 1,
+          "driver.drivername": 1,
+          "driver.email": 1,
+          "driver.phoneNumber": 1,
+          "driver.driversLicenseNumber": 1,
+          "driver.driversLicJur": 1,
+          "driver.status": 1,
+          "driver.isOnline": 1,
+          "vehicleUsed.registrationNumber": 1,
+          "vehicleUsed.vehicleModel": 1,
+          "vehicleUsed.year": 1,
+          "vehicleUsed.company": 1,
+          "vehicleUsed.vehicle_plate_number": 1,
+          "vehicleUsed.tripTypeCd": 1,
+          "shift._id": 1,
+          "shift.startTime": 1,
+          "shift.startDate": 1,
+          "shift.startTimeFormatted": 1,
+          "shift.endTime": 1,
+          "shift.endDate": 1,
+          "shift.endTimeFormatted": 1,
+        },
+      },  
+    ]);
+
+    // console.table(bookings);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    console.log("timestamps ---> ", timestamp)
+    const filename = `booking_${timestamp}.csv`;
+    const filepath = path.resolve(__dirname, "..", 'temp', filename);
+
+
+    const tempDir = path.dirname(filepath);
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    // Helper function to format date as yyyy-mm-ddZ
+    const formatDateToYMDZ = (date: any) => {
+      if (!date) return "N/A";
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return "N/A";
+      // Create YYYY-MM-DDZ format
+      return d.toISOString().slice(0, 10) + "Z";
+    };    
+
+    const csvData = bookings.map(booking => ({
+      "PTNo": "70365",
+      "NSCNo": "20023484",
+      "SvcTypCd": "Taxi",
+      "StartDt": formatDateToYMDZ(booking.pickupDate) || "N/A",
+      "EndDt": formatDateToYMDZ(booking.dropdownDate) || "N/A",
+      "ShiftID": booking.shift?._id?.toString() || "N/A",
+      "VehRegNo": booking.vehicleUsed?.registrationNumber || "N/A",
+      "VehRegJur": booking.vehicleUsed?.vehRegJur || "N/A",
+      "DriversLicNo": booking.driver?.driversLicenseNumber || "N/A",
+      "DriversLicJur": booking.driver?.driversLicJur || "N/A",
+      "ShiftStartDT": booking.shift?.startTimeFormatted || "N/A",
+      "ShiftEndDT": booking.shift?.endTimeFormatted || "N/A",
+      "TripID": booking.bookingId || "N/A",
+      "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "N/A", // or other logic if you want to specify
+      "TripStatusCd": "CMPLT",
+      "VehAssgnmtDt": booking.vehAssgnmtDt || "N/A",
+      "VehAssgnmtLat": booking.pickup?.latitude || "N/A",
+      "VehAssgnmtLng": booking.pickup?.longitude  || "N/A", 
+      "PsngrCnt": booking.passengerCount || "1",
+      "TripDurationMins": booking.tripDurationMins || "N/A",
+      "TripDistanceKMs": booking.distance || "N/A",
+      "TtlFareAmt": booking.totalFare || "N/A",
+      "PickupArrDt": booking.pickupTimeFormatted || "N/A",
+      "PickupDepDt": booking.pickupTimeFormatted || "N/A",
+      "PickupLat": booking.pickup?.latitude || "N/A",
+      "PickupLng": booking.pickup?.longitude || "N/A",
+      "DropoffArrDt": booking.dropoffTimeFormatted || "N/A",
+      "DropoffDepDt": booking.dropoffTimeFormatted || "N/A",
+      "DropoffLat": booking.dropOff?.latitude || "N/A",
+      "DropoffLng": booking.dropOff?.longitude || "N/A",
+    }));
+
+    // Print top 5 rows of csvData
+    console.log("< ------------------------- data form the csv file data ------------------------- >");
+    console.table(csvData.slice(0, 5));
+
+    await new Promise<void>((resolve, reject) => {
+      const writeStream = fs.createWriteStream(filepath);
+      const csvStream = format({ headers: true });
+
+      csvStream.pipe(writeStream);
+
+      csvData.forEach(row => {
+        csvStream.write(row);
+      })
+
+      csvStream.end();
+
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    })
+
+
+    console.log(`📄 CSV file created: ${filepath}`);
+
+    try {
+      // await sendBookingsDetailsReportEmail(
+      //   "salmonarmtaxis@gmail.com",
+      //   "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+      //   filepath
+      // );
+        await sendBookingsDetailsReportEmail(
+          "ramandeep.vit@gmail.com",
+          // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+          filepath
+        );
       console.log("📧 Report emailed successfully!");
       return { success: true, recordCount: bookings.length }
     } catch (error) {
@@ -1258,7 +1490,8 @@ export const generateAndSendReport = async () => {
 
 export const gettingReportAndSendEmail = async (req: Request, res: Response) => {
   try {
-    const result = await generateAndSendReport();
+    // const result = await generateAndSendReport();
+    const result = await generateAndSendReport12();
 
     res.status(200).json({
       message: "Report generator and Emailed successfully!",
@@ -1407,6 +1640,16 @@ export const getBookingdeteailsone = async (req: Request, res: Response) => {
       { $lookup: { from: "vehicles", localField: "vehicleUsed", foreignField: "_id", as: "vehicle" } },
       { $unwind: { path: "$vehicle", preserveNullAndEmptyArrays: true } },
 
+      {
+        $lookup: {
+          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
+          localField: "shift",
+          foreignField: "_id",
+          as: "shift",
+        },
+      },
+      { $unwind: { path: "$shift", preserveNullAndEmptyArrays: true } },
+
       { $sort: { pickupDate: -1, pickuptime: -1 } },
 
       {
@@ -1415,28 +1658,34 @@ export const getBookingdeteailsone = async (req: Request, res: Response) => {
           data: [
             { $skip: skip },
             { $limit: limit },
-            {  $project: {
-              bookingId: 1,
-              pickup: 1,
-              dropOff: 1,
-              pickuptime: 1,
-              pickupDate: 1,
-              pickupTimeFormatted: 1,
-              pickupMonth: 1,
-              pickupWeek: 1,
-              dropdownDate: 1,
-              dropdownTime: 1,
-              wating_time: 1,
-              wating_time_formated: 1,
-              distance: 1,
-              totalFare: 1,
-              paymentStatus: 1,
-              status: 1,
-              "driver.drivername": 1,
-              "vehicle.company": 1,
-              "vehicle.vehicleModel": 1,
-              // "vehicle.licensePlate": 1,
-             } }
+            {
+              $project: {
+                bookingId: 1,
+                pickup: 1,
+                dropOff: 1,
+                pickuptime: 1,
+                pickupDate: 1,
+                pickupTimeFormatted: 1,
+                pickupMonth: 1,
+                pickupWeek: 1,
+                dropdownDate: 1,
+                dropdownTime: 1,
+                wating_time: 1,
+                wating_time_formated: 1,
+                distance: 1,
+                totalFare: 1,
+                paymentStatus: 1,
+                status: 1,
+                "driver.drivername": 1,
+                "vehicle.company": 1,
+                "vehicle.vehicleModel": 1,
+                "shift.startTime": 1,
+                "shift.startDate": 1,
+                "shift.endTime": 1,
+                "shift.endDate": 1,
+                // "vehicle.licensePlate": 1,
+              }
+            }
           ]
         }
       }
@@ -1461,7 +1710,7 @@ export const getBookingdeteailsone = async (req: Request, res: Response) => {
 
     if (!bookings || bookings.length === 0) {
       res.status(404).json({
-        message: "No bookings found!",  
+        message: "No bookings found!",
         total,
         page,
         limit,
@@ -2017,3 +2266,123 @@ export const stopAllShift = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Failed to stop all active shifts.", error });
   }
 };
+
+
+
+
+export const getBookingdetailss = async (req: Request, res: Response) => {
+  try {
+    const bookings = await BookingModels.aggregate([
+      {
+        $lookup: {
+          from: "drivers",
+          localField: "driver",
+          foreignField: "_id",
+          as: "driver",
+        },
+      },
+      { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "vehicles",
+          localField: "vehicleUsed",
+          foreignField: "_id",
+          as: "vehicleUsed",
+        },
+      },
+      { $unwind: { path: "$vehicleUsed", preserveNullAndEmptyArrays: true } },
+      // Include shift model
+      {
+        $lookup: {
+          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
+          localField: "shift",
+          foreignField: "_id",
+          as: "shift",
+        },
+      },
+      { $unwind: { path: "$shift", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          bookingId: 1,
+          customerName: 1,
+          phoneNumber: 1,
+          "pickup.address": 1,
+          dropOff: 1,
+          pickuptime: 1,
+          pickupDate: 1,
+          pickupTimeFormatted: 1,
+          pickupMonth: 1,
+          pickupWeek: 1,
+          dropdownDate: 1,
+          dropdownTime: 1,
+          arrived: 1,
+          distance: 1,
+          totalFare: 1,
+          paymentStatus: 1,
+          status: 1,
+          "driver.driverId": 1,
+          "driver.drivername": 1,
+          "driver.email": 1,
+          "driver.phoneNumber": 1,
+          "driver.status": 1,
+          "driver.isOnline": 1,
+          "driver.driversLicenseNumber": 1,
+          "vehicleUsed.registrationNumber": 1,
+          "vehicleUsed.vehicleModel": 1,
+          "vehicleUsed.year": 1,
+          "vehicleUsed.company": 1,
+          "vehicleUsed.vehicle_plate_number": 1,
+          "shift._id": 1,
+          "shift.startTime": 1,
+          "shift.startDate": 1,
+          "shift.endTime": 1,
+          "shift.endDate": 1,
+        },
+      },
+    ]);
+
+    if (!bookings || bookings.length === 0) {
+      res.status(404).json({
+        message: "No bookings found!"
+      });
+      return;
+    }
+
+    res.status(200).json({ message: "Booking Fetching Successfully!!", bookings: bookings });
+    return;
+  } catch (err) {
+    // console.error("Error in generating report and sending email:", err);
+    res.status(500).json({ message: "Somthing happen on server", err });
+    return;
+  }
+};
+
+
+// PTNo
+// NSCNo
+// SvcTypCd
+// StartDt
+// endDt
+// ShiftId
+// VehRegNO
+// VehRegJur
+// DriverLicNO
+// DriverLicJur
+// ShiftsStartDt
+// ShiftsEndDt
+// TripId
+// TripTypeCd
+// VehAssgnemtDt
+// VehAssgnmtLAT
+// VehAssgnmtLng
+// TripDurationMins
+// TripDistanceKMs
+// TtlFareAmt
+// PickupArrDT
+// PickupDepDT
+// PickupLat
+// PickupLng
+// DropoffArrDT
+// DropoffDepDT
+// DropoffLat
+// DropoffLng

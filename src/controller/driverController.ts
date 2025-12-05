@@ -69,7 +69,7 @@ export const getAllVehicles = async (req: Request, res: Response) => {
     }
 
     const vehicles = await Vehicle.find().select(
-      "_id company vehicleModel year vehicle_plate_number status registrationNumber isAssigned"
+      "_id company vehicleModel year vehicle_plate_number vehRegJur tripTypeCd status registrationNumber isAssigned"
     );
 
     if (!vehicles || vehicles.length === 0) {
@@ -205,6 +205,8 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
 
   try {
     const driver = await Driver.findOne({ driverId: driverIdIdentity });
+
+    console.log("Driver data -----> ", driver);
     if (!driver) {
       res.status(404).json({ message: "Driver not found" });
       return;
@@ -237,7 +239,38 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
     const shiftStartDate = startDate || new Date().toLocaleDateString();
     console.log("shiftStartDate --------------> ", shiftStartDate)
 
-    const startTimeFormatted = `${shiftStartTime}, ${shiftStartDate}`;
+    // Format shiftStartDate and shiftStartTime as yyyy-MM-ddTHH:mm:ss.fffZ
+    // Combine date and time into one Date object and use toISOString() for formatting
+    const dateParts = shiftStartDate.split(/[\/\-]/);
+    // Assumes shiftStartDate is in MM/DD/YYYY or MM-DD-YYYY
+    const [month, day, year] = dateParts.length === 3
+      ? [parseInt(dateParts[0]), parseInt(dateParts[1]), parseInt(dateParts[2])]
+      : [null, null, null];
+
+    let hours = 0, minutes = 0;
+    if (shiftStartTime) {
+      // Handles "h:mm AM/PM"
+      const timeMatch = shiftStartTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (timeMatch) {
+        hours = parseInt(timeMatch[1]);
+        minutes = parseInt(timeMatch[2]);
+        const period = timeMatch[3].toUpperCase();
+        if (period === "PM" && hours !== 12) {
+          hours += 12;
+        } else if (period === "AM" && hours === 12) {
+          hours = 0;
+        }
+      }
+    }
+    let formattedISO = "";
+    if (year && month && day) {
+      const dateObj = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0, 0));
+      formattedISO = dateObj.toISOString();
+    } else {
+      // fallback just in case
+      formattedISO = new Date().toISOString();
+    }
+    const startTimeFormatted = formattedISO;
     console.log("startTimeFormatted --------------> ", startTimeFormatted)
     const startMonth = new Date(shiftStartDate).toLocaleString('default', { month: 'long' });
     console.log("startMonth --------------> ", startMonth)
@@ -262,6 +295,7 @@ export const startShiftwithtime = async (req: Request, res: Response) => {
     };
 
     vehicle.isAssigned = true;
+
 
     await vehicle.save()
 
@@ -458,6 +492,39 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
     //   await ongoingBooking.save();
     // }
 
+    const shiftendTime = endTime || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
+
+    const dateParts = shiftendTime.split(/[\/\-]/);
+  
+    const [month, day, year] = dateParts.length === 3
+      ? [parseInt(dateParts[0]), parseInt(dateParts[1]), parseInt(dateParts[2])]
+      : [null, null, null];
+
+    let hours1 = 0, minutes1 = 0;
+    if (shiftendTime) {
+      // Handles "h:mm AM/PM"
+      const timeMatch = shiftendTime.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (timeMatch) {
+        hours1 = parseInt(timeMatch[1]);
+        minutes1 = parseInt(timeMatch[2]);
+        const period = timeMatch[3].toUpperCase();
+        if (period === "PM" && hours1 !== 12) {
+          hours1 += 12;
+        } else if (period === "AM" && hours1 === 12) {
+          hours1 = 0;
+        }
+      }
+    }
+    let formattedISO = "";
+    if (year && month && day) {
+      const dateObj = new Date(Date.UTC(year, month - 1, day, hours1, minutes1, 0, 0));
+      formattedISO = dateObj.toISOString();
+    } else {
+      // fallback just in case
+      formattedISO = new Date().toISOString();
+    }
+    const endTimeFormatted = formattedISO;
+
     // --- End shift as before ---
     const start = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
     const end = parse(`${endDate} ${endTime}`, "MM/dd/yyyy hh:mma", new Date());
@@ -480,7 +547,7 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
 
     activeShift.endTime = endTime;
     activeShift.endDate = endDate;
-    activeShift.endTimeFormatted = end.toISOString();
+    activeShift.endTimeFormatted = endTimeFormatted;
     activeShift.endMonth = end.toLocaleString('default', { month: 'long' });  
     activeShift.isActive = false;
     activeShift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
@@ -575,7 +642,7 @@ export const start_Ride = async (req: Request, res: Response) => {
     phoneNumber,
     pickup: { latitude, longitude, address }
   } = req.body;
-  
+
   console.log("Request body:", req.body);
   // Validate required fields
   if (
@@ -598,21 +665,7 @@ export const start_Ride = async (req: Request, res: Response) => {
       return;
     }
 
-    // Check if there is already an ongoing ride for this driver
-    // const ongoingBooking = await BookingModels.findOne({
-    //   driver: driver._id,
-    //   status: "ongoing"
-    // });
-
-    // if (ongoingBooking) {
-    //   // If an ongoing ride exists, continue the ride and return its details
-    //   res.status(200).json({
-    //     message: "Ride is already ongoing. Continuing the ride.",
-    //     booking: ongoingBooking
-    //   });
-    //   return;
-    // }
-
+    // Find active shift for driver
     const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
 
     if (!activeShift) {
@@ -625,7 +678,10 @@ export const start_Ride = async (req: Request, res: Response) => {
     // Generate booking ID
     const bookingId = generateBookingId();
 
-    // Create new booking instance
+    // we set vehAssgnmtDt here as current date-time ISO string
+    // let vehAssgnmtDt: string = new Date().toISOString();
+
+    // Create new booking instance, with vehAssgnmtDt
     const bookingDoc = {
       bookingId,
       customerName,
@@ -644,23 +700,27 @@ export const start_Ride = async (req: Request, res: Response) => {
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
-        timeZone: 'America/Vancouver', // ✅ IST
+        timeZone: 'America/Vancouver',
       }),
       pickupDate: new Date().toLocaleDateString('en-US', {
         month: '2-digit',
         day: '2-digit',
         year: 'numeric',
-        timeZone: 'America/Vancouver', // ✅ IST
+        timeZone: 'America/Vancouver',
       }),
       pickupTimeFormatted: now.toISOString(),
+      dropoffTimeFormatted: null,
       pickupMonth: now.toLocaleString('default', { month: 'long' }),
       pickupWeek: Math.ceil(now.getDate() / 7),
       driver: driver._id,
       vehicleUsed: activeShift.vehicleUsed._id,
+      shift: activeShift._id,
       status: "ongoing",
       arrived: true,
       paymentStatus: "pending",
-      paymentMethod: "cash"
+      paymentMethod: "cash",
+      vehAssgnmtDt: new Date().toISOString(),
+      tripDurationMins: null,
     };
 
     const booking = new BookingModels(bookingDoc);
@@ -677,10 +737,9 @@ export const start_Ride = async (req: Request, res: Response) => {
 
     // Update driver
     driver.status = "busy";
-
     // Save updates
     await Promise.all([
-      activeShift.save(), // 👈 Will now store the booking inside shift
+      activeShift.save(),
       driver.save()
     ]);
 
@@ -771,6 +830,7 @@ export const start_Ride_with_pickuptime = async (req: Request, res: Response) =>
       pickupMonth: now.toLocaleString('default', { month: 'long' }),
       pickupWeek: Math.ceil(now.getDate() / 7),
       driver: driver._id,
+      shift : activeShift._id,
       status: "ongoing",
       arrived: true,
       paymentStatus: "pending",
@@ -924,6 +984,16 @@ export const end_Ride = async (req: Request, res: Response) => {
         year: 'numeric',
         timeZone: 'America/Vancouver', // ✅ IST
       }),
+      booking.dropoffTimeFormatted =  new Date().toISOString();
+      // Calculate the trip duration in minutes based on pickupTimeFormatted and current time
+      if (booking.pickupTimeFormatted) {
+        const pickupTime = new Date(booking.pickupTimeFormatted);
+        const dropoffTime = new Date();
+        const durationMs = dropoffTime.getTime() - pickupTime.getTime();
+        booking.tripDurationMins = Math.round(durationMs / 60000); // Convert ms to minutes
+      } else {
+        booking.tripDurationMins = 0;
+      }
       booking.dropOff = {
         latitude: dropLatitude,
         longitude: dropLongitude,
