@@ -45,7 +45,7 @@ router.get("/allAdminInfo", getAllAdminInfo)
 router.get("/adminInfo", authenticate, authorize(["admin"]), getAdminInfo);
 router.post("/add-driver", authenticate, authorize(["admin"]), adddriver);
 router.post("/resetPassword", authenticate, authorize(["admin"]), resetPassword);
-router.post("/add-multi-driver", authenticate, authorize(["admin"]),addMultipleDrivers );
+router.post("/add-multi-driver", authenticate, authorize(["admin"]), addMultipleDrivers);
 router.get(
   "/driver-details",
   authenticate,
@@ -137,14 +137,14 @@ router.delete(
   authorize(["admin"]),
   deleteBookingdata,
 );
-router.get("/getbooking",authenticate, authorize(["admin"]), getAllBookingRider);
-router.get("/getDriverListWithVehicle",authenticate, authorize(["admin"]), getDriverListWithVehicle);
-router.get("/getDriverWithVehicleexculudeDriver",authenticate, authorize(["admin"]), getDriverWithVehicleexculudeDriver);
+router.get("/getbooking", authenticate, authorize(["admin"]), getAllBookingRider);
+router.get("/getDriverListWithVehicle", authenticate, authorize(["admin"]), getDriverListWithVehicle);
+router.get("/getDriverWithVehicleexculudeDriver", authenticate, authorize(["admin"]), getDriverWithVehicleexculudeDriver);
 // router.get("/report-csv",authenticate, authorize(["admin"]), gettingReport);
 router.get("/report-csv", gettingReport);
 router.get("/monthly-report-csv", gettingReportAndSendEmail);
-router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
-router.get("/bookingsone", authenticate, authorize(["admin"]),getBookingdeteailsone);
+router.get("/bookings", authenticate, authorize(["admin"]), getBookingdeteails);
+router.get("/bookingsone", authenticate, authorize(["admin"]), getBookingdeteailsone);
 
 
 router.post("/settings", authenticate, authorize(["admin"]), setting);
@@ -155,7 +155,7 @@ router.post("/scheduleRide", authenticate, authorize(["admin"]), scheduleRide);
 
 router.post("/stopAllShifts", stopAllShift);
 
-router.get("/shiftsHistory",getAllShifts12)
+router.get("/shiftsHistory", getAllShifts12)
 router.get("/getallshiftwithdriverandvehicle", getDriverWithAssignedVehicle)
 
 export default router;
