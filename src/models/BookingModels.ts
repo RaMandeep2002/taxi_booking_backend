@@ -18,6 +18,7 @@ export interface IBooking extends Document {
   pickupTimeFormatted: string;
   dropdownDate: string;
   dropdownTime: string;
+  dropoffTimeFormatted?:string;
   arrived: boolean;
   pickupMonth: string;
   pickupWeek: number;
@@ -29,8 +30,12 @@ export interface IBooking extends Document {
   after_discount_price: number;
   wating_time : number;
   wating_time_formated: string;
+  totalDuration?:string;
   driver: Types.ObjectId;
   vehicleUsed: Types.ObjectId;
+  shift: Types.ObjectId;
+  vehAssgnmtDt:string;
+  tripDurationMins:number;
   paymentStatus: "pending" | "paid";
   paymentMethod: "cash" | "card" | "online";
   status: "pending" | "accepted" | "ongoing" | "completed" | "cancelled";
@@ -87,6 +92,9 @@ const BookingSchema: Schema = new Schema({
     type: String,
     default: 0,
   },
+  dropoffTimeFormatted:{
+    type:String,
+  },
   arrived: {
     type: Boolean,
     default: false,
@@ -122,6 +130,9 @@ const BookingSchema: Schema = new Schema({
   wating_time_formated:{
     type:String,
   },
+  totalDuration:{
+    type:String,
+  },
   driver: {
     type: Schema.Types.ObjectId,
     ref: "Driver",
@@ -129,6 +140,16 @@ const BookingSchema: Schema = new Schema({
   vehicleUsed:{
     type:Schema.Types.ObjectId,
     ref:"Vehicle",
+  },
+  shift:{
+    type:Schema.Types.ObjectId,
+    ref:"Shift",
+  },
+  vehAssgnmtDt:{
+    type:String,
+  },
+  tripDurationMins:{
+    type: Number,
   },
   paymentStatus: {
     type: String,

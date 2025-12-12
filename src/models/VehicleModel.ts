@@ -7,8 +7,11 @@ export interface IVehicle extends Document {
   vehicleModel: string;
   year: number;
   vehicle_plate_number : string;
+  vehRegJur?: string;
   status: "active" | "free";
   currentDriver?: Types.ObjectId;
+  vehAssgnmtDt?:string;
+  tripTypeCd ?: string; 
   isActive: boolean;
   isAssigned:boolean;
 }
@@ -36,6 +39,9 @@ const VehicleSchema: Schema = new Schema(
     vehicle_plate_number : {
       type:String,
     },
+    vehRegJur:{
+      type:String,
+    },
     status: {
       type: String,
       enum: ["active", "free"],
@@ -44,6 +50,12 @@ const VehicleSchema: Schema = new Schema(
     currentDriver: {
       type: Schema.Types.ObjectId,
       ref: "Driver",
+    },
+    vehAssgnmtDt:{
+      type:String
+    },
+    tripTypeCd:{
+      type:String,
     },
     isActive: {
       type: Boolean,

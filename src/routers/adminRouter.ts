@@ -35,6 +35,7 @@ import {
   getAllAdminInfo,
   stopAllShift,
   getBookingdeteailsone,
+  getBookingdetailss,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -143,8 +144,9 @@ router.get("/getDriverWithVehicleexculudeDriver", authenticate, authorize(["admi
 // router.get("/report-csv",authenticate, authorize(["admin"]), gettingReport);
 router.get("/report-csv", gettingReport);
 router.get("/monthly-report-csv", gettingReportAndSendEmail);
-router.get("/bookings", authenticate, authorize(["admin"]), getBookingdeteails);
-router.get("/bookingsone", authenticate, authorize(["admin"]), getBookingdeteailsone);
+router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
+router.get("/bookingsone", authenticate, authorize(["admin"]),getBookingdeteailsone);
+router.get("/bookingsall",getBookingdetailss);
 
 
 router.post("/settings", authenticate, authorize(["admin"]), setting);
