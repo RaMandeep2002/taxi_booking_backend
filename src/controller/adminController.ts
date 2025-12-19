@@ -1013,6 +1013,15 @@ export const gettingReport = async (req: Request, res: Response) => {
         }
       },
       {
+        $lookup: {
+          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
+          localField: "shift",
+          foreignField: "_id",
+          as: "shift",
+        },
+      },
+      { $unwind: { path: "$shift", preserveNullAndEmptyArrays: true } },
+      {
         $project: {
           bookingId: 1,
           customerName: 1,
