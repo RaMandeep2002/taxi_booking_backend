@@ -1106,6 +1106,8 @@ export const gettingReport = async (req: Request, res: Response) => {
       "TripID": booking.bookingId || "N/A",
       "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "CNVTL", // or other logic if you want to specify
       "TripStatusCd": "CMPLT",
+      "PreBookedYN": "N",
+      "SvcAnimalYN": "N",
       "VehAssgnmtDt": booking.vehAssgnmtDt || "N/A",
       "VehAssgnmtLat": booking.pickup?.latitude || "N/A",
       "VehAssgnmtLng": booking.pickup?.longitude  || "N/A", 
