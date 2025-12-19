@@ -24,8 +24,6 @@ import path from "path";
 import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { record } from "zod";
 import { formatZodErrors } from "../utils/FormatZodError";
-import { getPTDWConfig } from "../config/ptdw.config";
-import { PTDWSubmissionService } from "./ptdw-submission.service";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
@@ -414,7 +412,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
   const { driverId } = req.params;
   const validationResult = updateDriverAddSchema.safeParse(req.body);
   if (!validationResult.success) {
-   
+  
     const formattedErrors = formatZodErrors(validationResult.error);
 
     console.log("Format error -----> ", formattedErrors);
@@ -425,7 +423,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { drivername, email, phoneNumber, driversLicenseNumber, driversLicJur,password } = validationResult.data;
+  const { drivername, email, phoneNumber, driversLicenseNumber, password } = validationResult.data;
 
   try {
     const originalDriver = await Driver.findOne({ driverId });
@@ -442,7 +440,6 @@ export const upadateDriver = async (req: Request, res: Response) => {
       email,
       phoneNumber,
       driversLicenseNumber,
-      driversLicJur
     };
 
     const updatedDriver = await Driver.findOneAndUpdate(
@@ -1015,164 +1012,6 @@ export const gettingReport = async (req: Request, res: Response) => {
           bookingId: 1,
           customerName: 1,
           phoneNumber: 1,
-          "pickup.address": 1,
-          dropOff: 1,
-          pickuptime: 1,
-          pickupDate: 1,
-          pickupTimeFormatted: 1,
-          pickupMonth: 1,
-          pickupWeek: 1,
-          dropdownDate: 1,
-          dropdownTime: 1,
-          arrived: 1,
-          distance: 1,
-          totalFare: 1,
-          paymentStatus: 1,
-          status: 1,
-          "driver.driverId": 1,
-          "driver.drivername": 1,
-          "driver.email": 1,
-          "driver.phoneNumber": 1,
-          "driver.status": 1,
-          "driver.isOnline": 1,
-          "vehicleUsed.registrationNumber": 1,
-          "vehicleUsed.vehicleModel": 1,
-          "vehicleUsed.year": 1,
-          "vehicleUsed.company": 1,
-          "vehicleUsed.vehicle_plate_number": 1,
-        },
-      },
-    ]);
-
-    if (!bookings.length) {
-      res.status(404).json({ message: "No bookings found" });
-      return;
-    }
-
-    const filepath = "bookings.csv";
-    const writeableStream = fs.createWriteStream(filepath);
-    const csvStream = format({ headers: true });
-
-    csvStream.pipe(writeableStream);
-
-    bookings.forEach((booking) => {
-      csvStream.write({
-        "Booking ID": booking.bookingId,
-        "Pickup Date": booking.pickupDate,
-        "Pickup Time": booking.pickuptime,
-        "Pickup Month": booking.pickupMonth,
-        "Pickup Week": booking.pickupWeek,
-        "Arrived": booking.arrived,
-        "Contact": booking.driver?.phoneNumber || "N/A",
-        "Finish Date": booking.dropdownDate,
-        "Finish Time": booking.dropdownTime,
-        "Customer Phone": booking.phoneNumber,
-        "Address": booking.pickup?.address || "N/A",
-        "Vehicle": booking.vehicleUsed?.company || "N/A",
-        "Vehicle Number": booking.vehicleUsed?.vehicle_plate_number || "N/A",
-        "Meter": booking.distance,
-      });
-    });
-
-    csvStream.end();
-
-    writeableStream.on("finish", () => {
-      res.download(filepath, "bookings.csv", (err) => {
-        if (err) {
-          console.error("Error sending file:", err);
-          res.status(500).json({ message: "Error generating CSV file." });
-        }
-        fs.unlinkSync(filepath);
-      });
-    });
-
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-export const generateAndSendReport = async (  environment: 'production' | 'test' = 'test',submitToPTDW: boolean = true) => {
-  try {
-    const today = new Date();
-    console.log("Today ==> ", today);
-
-    const month = today.getMonth();
-    console.info("month -----> ", month)
-
-    // Calculate previous month (if today is July, previous month is June)
-    const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
-    const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
-
-    // First day of the previous month
-    const fromDate = new Date(year, prevMonth, 1);
-
-    // Last day of the previous month
-    const toDate = new Date(year, prevMonth + 1, 0);
-
-    console.log("From date ===> ", fromDate);
-    console.log("To date ===> ", toDate);
-
-    const PDT = 'America/Vancouver';
-
-    console.log('fromDate in IST:', formatInTimeZone(fromDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
-    console.log('toDate in IST:', formatInTimeZone(toDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
-
-    console.log("fromDate.toISOString() ---> ", fromDate.toISOString());
-    console.log("toDate.toISOString() ---> ", toDate.toISOString());
-
-    const bookings = await BookingModels.aggregate([
-      // {
-      //   $addFields: {
-      //     pickupDateObj: {
-      //       $dateFromString: {
-      //         dateString: "$pickupDate",
-      //         format: "%m/%d/%Y",
-      //       }
-      //     }
-      //   }
-      // },
-      // {
-      //   $match: {
-      //     pickupDateObj: {
-      //       $gte: fromDate,
-      //       $lte: toDate,
-      //     },
-      //   },
-      // },
-      {
-        $lookup: {
-          from: "drivers",
-          localField: "driver",
-          foreignField: "_id",
-          as: "driver",
-        },
-      },
-      { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
-      {
-        $lookup: {
-          from: "vehicles",
-          localField: "vehicleUsed",
-          foreignField: "_id",
-          as: "vehicleUsed",
-        },
-      },
-      { $unwind: { path: "$vehicleUsed", preserveNullAndEmptyArrays: true } },
-      // Include shift model
-      {
-        $lookup: {
-          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
-          localField: "shift",
-          foreignField: "_id",
-          as: "shift",
-        },
-      },
-      { $unwind: { path: "$shift", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          bookingId: 1,
-          customerName: 1,
-          phoneNumber: 1,
           pickup: 1,
           dropOff: 1,
           pickuptime: 1,
@@ -1212,22 +1051,22 @@ export const generateAndSendReport = async (  environment: 'production' | 'test'
           "shift.endDate": 1,
           "shift.endTimeFormatted": 1,
         },
-      },  
+      },
     ]);
 
-    console.table(bookings);
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    console.log("timestamps ---> ", timestamp)
-    const filename = `booking_${timestamp}.csv`;
-    const filepath = path.resolve(__dirname, "..", 'temp', filename);
-
-
-    const tempDir = path.dirname(filepath);
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
+    if (!bookings.length) {
+      res.status(404).json({ message: "No bookings found" });
+      return;
     }
 
+    const filepath = "bookings.csv";
+    const writeableStream = fs.createWriteStream(filepath);
+    const csvStream = format({ headers: true });
+
+    csvStream.pipe(writeableStream);
+
+
+    // Helper function to format date as yyyy-mm-ddZ
     const formatDateToYMDZ = (date: any) => {
       if (!date) return "N/A";
       const d = new Date(date);
@@ -1236,21 +1075,22 @@ export const generateAndSendReport = async (  environment: 'production' | 'test'
       return d.toISOString().slice(0, 10) + "Z";
     };    
 
-    const csvData = bookings.map(booking => ({
-      "PTNo": "70365",
+    bookings.forEach((booking) => {
+      csvStream.write({
+        "PTNo": "70365",
       "NSCNo": "20023484",
       "SvcTypCd": "Taxi",
       "StartDt": formatDateToYMDZ(booking.pickupDate) || "N/A",
       "EndDt": formatDateToYMDZ(booking.dropdownDate) || "N/A",
       "ShiftID": booking.shift?._id?.toString() || "N/A",
       "VehRegNo": booking.vehicleUsed?.registrationNumber || "N/A",
-      "VehRegJur": booking.vehicleUsed?.vehRegJur || "N/A",
+      "VehRegJur": booking.vehicleUsed?.vehRegJur || "BC",
       "DriversLicNo": booking.driver?.driversLicenseNumber || "N/A",
-      "DriversLicJur": booking.driver?.driversLicJur || "N/A",
+      "DriversLicJur": booking.driver?.driversLicJur || "BC",
       "ShiftStartDT": booking.shift?.startTimeFormatted || "N/A",
       "ShiftEndDT": booking.shift?.endTimeFormatted || "N/A",
       "TripID": booking.bookingId || "N/A",
-      "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "N/A", // or other logic if you want to specify
+      "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "CNVTL", // or other logic if you want to specify
       "TripStatusCd": "CMPLT",
       "VehAssgnmtDt": booking.vehAssgnmtDt || "N/A",
       "VehAssgnmtLat": booking.pickup?.latitude || "N/A",
@@ -1267,6 +1107,190 @@ export const generateAndSendReport = async (  environment: 'production' | 'test'
       "DropoffDepDt": booking.dropoffTimeFormatted || "N/A",
       "DropoffLat": booking.dropOff?.latitude || "N/A",
       "DropoffLng": booking.dropOff?.longitude || "N/A",
+      });
+    });
+
+    csvStream.end();
+
+    writeableStream.on("finish", () => {
+      res.download(filepath, "bookings.csv", (err) => {
+        if (err) {
+          console.error("Error sending file:", err);
+          res.status(500).json({ message: "Error generating CSV file." });
+        }
+        fs.unlinkSync(filepath);
+      });
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+export const generateAndSendReport = async () => {
+  try {
+    const today = new Date();
+    console.log("Today ==> ", today);
+
+    const month = today.getMonth();
+    console.info("month -----> ", month)
+
+    // Calculate previous month (if today is July, previous month is June)
+    const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
+    const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+
+    // First day of the previous month
+    const fromDate = new Date(year, prevMonth, 1);
+
+    // Last day of the previous month
+    const toDate = new Date(year, prevMonth + 1, 0);
+
+    console.log("From date ===> ", fromDate);
+    console.log("To date ===> ", toDate);
+
+    const PDT = 'America/Vancouver';
+
+    console.log('fromDate in IST:', formatInTimeZone(fromDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
+    console.log('toDate in IST:', formatInTimeZone(toDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
+
+    console.log("fromDate.toISOString() ---> ", fromDate.toISOString());
+    console.log("toDate.toISOString() ---> ", toDate.toISOString());
+
+    const bookings = await BookingModels.aggregate([
+      {
+        $addFields: {
+          pickupDateObj: {
+            $dateFromString: {
+              dateString: "$pickupDate",
+              format: "%m/%d/%Y",
+            }
+          }
+        }
+      },
+      {
+        $match: {
+          pickupDateObj: {
+            $gte: new Date(fromDate),
+            $lte: new Date(toDate),
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "drivers",
+          localField: "driver",
+          foreignField: "_id",
+          as: "driver",
+        },
+      },
+      { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: "vehicles",
+          localField: "vehicleUsed",
+          foreignField: "_id",
+          as: "vehicleUsed",
+        },
+      },
+      { $unwind: { path: "$vehicleUsed", preserveNullAndEmptyArrays: true } },
+      // Include shift model
+      {
+        $lookup: {
+          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
+          localField: "shift",
+          foreignField: "_id",
+          as: "shift",
+        },
+      },
+      { $unwind: { path: "$shift", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          bookingId: 1,
+          customerName: 1,
+          phoneNumber: 1,
+          "pickup.address": 1,
+          dropOff: 1,
+          pickuptime: 1,
+          pickupDate: 1,
+          pickupTimeFormatted: 1,
+          pickupMonth: 1,
+          pickupWeek: 1,
+          dropdownDate: 1,
+          dropdownTime: 1,
+          arrived: 1,
+          distance: 1,
+          totalFare: 1,
+          paymentStatus: 1,
+          status: 1,
+          "driver.driverId": 1,
+          "driver.drivername": 1,
+          "driver.email": 1,
+          "driver.phoneNumber": 1,
+          "driver.driversLicenseNumber": 1,
+          "driver.driversLicJur": 1,
+          "driver.status": 1,
+          "driver.isOnline": 1,
+          "vehicleUsed.registrationNumber": 1,
+          "vehicleUsed.vehicleModel": 1,
+          "vehicleUsed.year": 1,
+          "vehicleUsed.company": 1,
+          "vehicleUsed.vehicle_plate_number": 1,
+          "vehicleUsed.vehRegJur": 1,
+          "vehicleUsed.tripTypeCd": 1,
+          "shift._id": 1,
+          "shift.startTime": 1,
+          "shift.startDate": 1,
+          "shift.endTime": 1,
+          "shift.endDate": 1,
+        },
+      },
+    ]);
+
+    console.table(bookings);
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    console.log("timestamps ---> ", timestamp)
+    const filename = `booking_${timestamp}.csv`;
+    const filepath = path.resolve(__dirname, "..", 'temp', filename);
+
+
+    const tempDir = path.dirname(filepath);
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
+    const csvData = bookings.map(booking => ({
+      "PTNo": "70365",
+      "NSCNo": "20023484",
+      "SvcTypCd": "Taxi",
+      "StartDt": booking.pickupDate || "N/A",
+      "EndDt": booking.dropdownDate || "N/A",
+      "ShiftID": booking.shift?._id?.toString() || "N/A",
+      "VehRegNo": booking.vehicleUsed?.registrationNumber || "N/A",
+      "VehRegJur": booking.vehicleUsed?.vehRegJur || "N/A",
+      "DriversLicNo": booking.driver?.licenseNumber || "N/A",
+      "DriversLicJur": booking.driver?.licenseJurisdiction || "N/A",
+      "ShiftStartDT": booking.shift?.startDate || "N/A",
+      "ShiftEndDT": booking.shift?.endDate || "N/A",
+      "TripID": booking.bookingId || "N/A",
+      "TripTypeCd": booking?.tripTypeCd || "N/A", // or other logic if you want to specify
+      "TripStatusCd": booking.status || "N/A",
+      "VehAssgnmtDt": booking.vehAssignmentDate || "N/A",
+      "VehAssgnmtLat": booking.vehAssignmentLat || "N/A",
+      "VehAssgnmtLng": booking.vehAssignmentLng || "N/A",
+      "PsngrCnt": booking.passengerCount || "1",
+      "TripDurationMins": booking.tripDurationMins || "N/A",
+      "TripDistanceKMs": booking.distance || "N/A",
+      "TtlFareAmt": booking.totalFare || "N/A",
+      "PickupArrDt": booking.pickupArriveDate || "N/A",
+      "PickupDepDt": booking.pickupDepartDate || "N/A",
+      "PickupLat": booking.pickup?.lat || "N/A",
+      "PickupLng": booking.pickup?.lng || "N/A",
+      "DropoffArrDt": booking.dropoffArriveDate || "N/A",
+      "DropoffDepDt": booking.dropoffDepartDate || "N/A",
+      "DropoffLat": booking.dropOff?.lat || "N/A",
+      "DropoffLng": booking.dropOff?.lng || "N/A",
     }));
 
     // Print top 5 rows of csvData
@@ -1292,47 +1316,6 @@ export const generateAndSendReport = async (  environment: 'production' | 'test'
 
     console.log(`📄 CSV file created: ${filepath}`);
 
-
-    let ptdwResult = null;
-    if(submitToPTDW){
-      try{
-        console.log('\n🔄 Starting PTDW API submission...');
-
-        const startDate = fromDate.toISOString().split("T")[0];
-        const endDate = toDate.toISOString().split("T")[0];
-
-        
-        console.log(`📅 Submitting data for: ${startDate} to ${endDate}`);
-
-        const environment = process.env.PTDW_ENVIRONMENT === 'production' ? 'production' : 'test';
-        console.log(`🌍 Using ${environment} environment`);
-
-        let config;
-        try {
-          config = getPTDWConfig(environment);
-        } catch (e) {
-          console.error(`❌ Exception during PTDW submission:`, e);
-          throw e;
-        }
-        const ptdwService = new PTDWSubmissionService(config, 'Salmon Arm Taxis');
-
-        ptdwResult = await ptdwService.submitCSVData(csvData, startDate, endDate);
-
-        if(ptdwResult){
-          console.log(`✅ PTDW Submission successful!`);
-          console.log(`   Submission ID: ${ptdwResult.submissionId}`);
-          console.log(`   Status: ${ptdwResult.message}`);
-        }
-        else {
-          console.error('❌ PTDW submission failed: Unknown error or no error message returned.');
-        }
-      } catch (error) {
-        console.error('❌ Exception during PTDW submission:', error);
-      }
-    }else{
-      console.log('⏭️ PTDW submission skipped (disabled)');
-    }
-
     try {
       // await sendBookingsDetailsReportEmail(
       //   "salmonarmtaxis@gmail.com",
@@ -1345,15 +1328,7 @@ export const generateAndSendReport = async (  environment: 'production' | 'test'
           filepath
         );
       console.log("📧 Report emailed successfully!");
-      return { 
-        success: true, 
-        recordCount: bookings.length,
-        ptdwSubmission: ptdwResult,
-        dateRange: {
-          from: fromDate.toISOString().split('T')[0],
-          to: toDate.toISOString().split('T')[0]
-        }
-      };
+      return { success: true, recordCount: bookings.length }
     } catch (error) {
       console.error("📧 Report emailed Failed..");
       throw error;
@@ -1365,43 +1340,11 @@ export const generateAndSendReport = async (  environment: 'production' | 'test'
         console.error("⚠️ Failed to delete temporary file:", unlinkErr);
       }
     }
-
-   
   } catch (err) {
     console.error("Error in generating report and sending email:", err);
     throw err;
   }
 };
-
-if (require.main === module) {
-  const args = process.argv.slice(2);
-  
-  if (args.length < 2) {
-    console.log('Usage: ts-node ptdw-monthly-submit.ts <year> <month> [environment]');
-    console.log('Example: ts-node ptdw-monthly-submit.ts 2024 11 test');
-    console.log('Note: Month is 0-based (0=Jan, 11=Dec)');
-    process.exit(1);
-  }
-
-  const year = parseInt(args[0]);
-  const month = parseInt(args[1]);
-  const environment = (args[2] || 'test') as 'production' | 'test';
-  
-  if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
-    console.error('Invalid year or month. Month must be 0-11.');
-    process.exit(1);
-  }
-
-  generateAndSendReport(environment)
-    .then(result => {
-      console.log('\n📋 Final Result:', result);
-      process.exit(result.success ? 0 : 1);
-    })
-    .catch(error => {
-      console.error('Fatal error:', error);
-      process.exit(1);
-    });
-}
 
 export const generateAndSendReport12 = async () => {
   try {
@@ -1594,8 +1537,8 @@ export const generateAndSendReport12 = async () => {
 
 export const gettingReportAndSendEmail = async (req: Request, res: Response) => {
   try {
-    const result = await generateAndSendReport("test", true);
-    // const result = await generateAndSendReport12();
+    // const result = await generateAndSendReport();
+    const result = await generateAndSendReport12();
 
     res.status(200).json({
       message: "Report generator and Emailed successfully!",
