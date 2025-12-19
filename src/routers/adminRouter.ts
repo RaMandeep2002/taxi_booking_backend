@@ -118,7 +118,7 @@ router.get(
 
 
 router.put(
-  "/update-vehicle/:registrationNumber",
+  "/update-vehicle/:id",
   authenticate,
   authorize(["admin"]),
   updateVehicleInfomation,

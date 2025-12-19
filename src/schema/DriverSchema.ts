@@ -39,7 +39,7 @@ export const updateDriverAddSchema = z.object({
         return emailregex.test(value);
     }, { message: "Invalid email" }),
     driversLicenseNumber: z.string({ required_error: "Driver's license number is required" })
-    .min(5, { message: "Driver's license number must be at least 5 characters long" }),
+        .min(5, { message: "Driver's license number must be at least 5 characters long" }),
 
     driversLicJur: z.string({
         required_error: "Driver's License Jurisdiction is required",
@@ -50,8 +50,8 @@ export const updateDriverAddSchema = z.object({
     //     return phoneValidation.test(value);
     // }, { message: "Invalid phone number. Must be a valid Indian phone number starting with +91, 91, 0 or just 10 digits" }),
     phoneNumber: z
-    .string({ required_error: "Phone number is required" })
-    .min(10, { message: "Phone number must be at least 10 digits" }),
+        .string({ required_error: "Phone number is required" })
+        .min(10, { message: "Phone number must be at least 10 digits" }),
     // .refine((value) => canadianPhoneRegex.test(value), {
     //   message: "Invalid Canadian phone number",
     // }),
@@ -89,13 +89,31 @@ export const registerSharedVehicleSchema = z.object({
     })
         .min(3, { message: "License plate number must be at least 3 characters long" }),
 
-    vehRegJur: z.string({required_error:"Vehicle Registration Jurisdiction is required"}).min(2, {message:"Vehicle Registration Jurisdiction must be atleast 2 character long"}),
+    vehRegJur: z.string({ required_error: "Vehicle Registration Jurisdiction is required" }).min(2, { message: "Vehicle Registration Jurisdiction must be atleast 2 character long" }),
     tripTypeCd: z.string({ required_error: "Trip Type Code is required" }).min(1, { message: "Trip Type Code must not be empty" })
 })
 
 export const updateVehicleSchema = z.object({
-    company: z.string().min(3, "Car make atleast more than 6 charaters"),
-    vehicleModel: z.string().min(3, "Car vehicleModel atleast more than 6 charaters"),
-    year: z.number(),
-    vehicle_plate_number: z.string(),
+    registrationNumber: z.string().
+        min(17, { message: "Registration Number is Required!" }),
+    company: z.string({
+        required_error: "Company name is required",
+    })
+        .min(3, { message: "Company name must be at least 3 characters long" }),
+    vehicleModel: z.string({
+        required_error: "Vehicle model is required",
+    })
+        .min(3, { message: "Vehicle model must be at least 3 characters long" }),
+    year: z.number({
+        required_error: "Year is required",
+    })
+        .int({ message: "Year must be an integer" })
+        .min(1900, { message: "Year cannot be earlier than 1900" })
+        .max(new Date().getFullYear() + 1, { message: "Year cannot be too far in the future" }),
+    vehicle_plate_number: z.string({
+        required_error: "License plate number is required",
+    })
+        .min(3, { message: "License plate number must be at least 3 characters long" }),
+    vehRegJur: z.string({ required_error: "Vehicle Registration Jurisdiction is required" }).min(2, { message: "Vehicle Registration Jurisdiction must be atleast 2 character long" }),
+    tripTypeCd: z.string({ required_error: "Trip Type Code is required" }).min(1, { message: "Trip Type Code must not be empty" })
 })

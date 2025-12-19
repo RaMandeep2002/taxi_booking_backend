@@ -410,6 +410,7 @@ export const getDriverDetails = async (req: Request, res: Response) => {
 };
 export const upadateDriver = async (req: Request, res: Response) => {
   const { driverId } = req.params;
+  console.log("req.body =======> ", req.body)
   const validationResult = updateDriverAddSchema.safeParse(req.body);
   if (!validationResult.success) {
   
@@ -423,7 +424,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { drivername, email, phoneNumber, driversLicenseNumber, password } = validationResult.data;
+  const { drivername, email, phoneNumber, driversLicenseNumber,driversLicJur, password } = validationResult.data;
 
   try {
     const originalDriver = await Driver.findOne({ driverId });
@@ -440,6 +441,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
       email,
       phoneNumber,
       driversLicenseNumber,
+      driversLicJur
     };
 
     const updatedDriver = await Driver.findOneAndUpdate(
@@ -852,39 +854,42 @@ export const getDriverWithVehicleandshifts = async (req: Request, res: Response)
 };
 
 export const updateVehicleInfomation = async (req: Request, res: Response) => {
-  const { registrationNumber } = req.params;
+  console.log("req.body -----> ", req.body)
+  // Update vehicle using its MongoDB "_id" field from params
+  const { id } = req.params;
   const validationResult = updateVehicleSchema.safeParse(req.body);
+
   if (!validationResult.success) {
-    res.status(400).json({ errors: validationResult.error.errors });
+    const formattedErrors = formatZodErrors(validationResult.error);
+    console.log("Format error -----> ", formattedErrors);
+    res.status(400).json({
+      success: false,
+      errors: formattedErrors,
+    });
     return;
   }
 
-  const { company, vehicleModel, year, vehicle_plate_number } = validationResult.data;
+  const {registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } = validationResult.data;
+
   try {
-    const vehicle = await Vehicle.findOne({ registrationNumber });
+    const vehicle = await Vehicle.findById(id);
     if (!vehicle) {
       res.status(404).json({ message: "Vehicle not found" });
       return;
     }
 
-    // const driver = await Driver.findOne({ driverId });
-    // if (!driver) {
-    //   res.status(404).json({ message: "Driver doest exist!!" });
-    //   return;
-    // }
-
-    const updateDriver = await Vehicle.findOneAndUpdate(
-      { registrationNumber },
-      { $set: { company, vehicleModel, year, vehicle_plate_number } },
-      { new: true },
+    const updatedVehicle = await Vehicle.findByIdAndUpdate(
+      id,
+      { $set: { registrationNumber,company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } },
+      { new: true }
     );
 
     await redisClinet.del("vehicles:list");
 
-
-    res
-      .status(200)
-      .json({ message: "Successfully updateed!!", vechicle: updateDriver });
+    res.status(200).json({
+      message: "Successfully updated!",
+      vehicle: updatedVehicle,
+    });
   } catch (error) {
     res.status(400).json({ message: "Error Updating Vehicle", error });
   }
