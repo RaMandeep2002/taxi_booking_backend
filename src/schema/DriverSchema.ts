@@ -38,13 +38,20 @@ export const updateDriverAddSchema = z.object({
     email: z.string().email().min(10, { message: "email must be correct" }).refine((value) => {
         return emailregex.test(value);
     }, { message: "Invalid email" }),
-    driversLicenseNumber: z.string(),
+    driversLicenseNumber: z.string({ required_error: "Driver's license number is required" })
+    .min(5, { message: "Driver's license number must be at least 5 characters long" }),
+
+    driversLicJur: z.string({
+        required_error: "Driver's License Jurisdiction is required",
+    }).min(2, {
+        message: "Driver's License Jurisdiction must be at least 2 characters long",
+    }),
     // phoneNumber: z.string().min(10, { message: "Phone number must be atleast 10 digits" }).refine((value) => {
     //     return phoneValidation.test(value);
     // }, { message: "Invalid phone number. Must be a valid Indian phone number starting with +91, 91, 0 or just 10 digits" }),
     phoneNumber: z
-        .string()
-        .min(10, { message: "Phone number must be at least 10 digits" }),
+    .string({ required_error: "Phone number is required" })
+    .min(10, { message: "Phone number must be at least 10 digits" }),
     // .refine((value) => canadianPhoneRegex.test(value), {
     //   message: "Invalid Canadian phone number",
     // }),
