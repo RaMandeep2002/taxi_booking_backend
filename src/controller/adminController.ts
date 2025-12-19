@@ -412,10 +412,18 @@ export const upadateDriver = async (req: Request, res: Response) => {
   const { driverId } = req.params;
   const validationResult = updateDriverAddSchema.safeParse(req.body);
   if (!validationResult.success) {
-    res.status(400).json({ errors: validationResult.error.errors });
+   
+    const formattedErrors = formatZodErrors(validationResult.error);
+
+    console.log("Format error -----> ", formattedErrors);
+
+    res.status(400).json({
+      success: false,
+      errors: formattedErrors,
+    });
     return;
   }
-  const { drivername, email, phoneNumber, driversLicenseNumber, password } = validationResult.data;
+  const { drivername, email, phoneNumber, driversLicenseNumber, driversLicJur,password } = validationResult.data;
 
   try {
     const originalDriver = await Driver.findOne({ driverId });
@@ -432,6 +440,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
       email,
       phoneNumber,
       driversLicenseNumber,
+      driversLicJur
     };
 
     const updatedDriver = await Driver.findOneAndUpdate(
