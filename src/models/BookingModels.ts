@@ -36,6 +36,7 @@ export interface IBooking extends Document {
   shift: Types.ObjectId;
   vehAssgnmtDt:string;
   tripDurationMins:number;
+  isSvcAnimalYN : boolean;
   paymentStatus: "pending" | "paid";
   paymentMethod: "cash" | "card" | "online";
   status: "pending" | "accepted" | "ongoing" | "completed" | "cancelled";
@@ -150,6 +151,10 @@ const BookingSchema: Schema = new Schema({
   },
   tripDurationMins:{
     type: Number,
+  },
+  isSvcAnimalYN:{
+    type:Boolean,
+    default: false
   },
   paymentStatus: {
     type: String,

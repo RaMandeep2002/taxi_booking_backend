@@ -413,7 +413,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
   console.log("req.body =======> ", req.body)
   const validationResult = updateDriverAddSchema.safeParse(req.body);
   if (!validationResult.success) {
-  
+
     const formattedErrors = formatZodErrors(validationResult.error);
 
     console.log("Format error -----> ", formattedErrors);
@@ -424,7 +424,7 @@ export const upadateDriver = async (req: Request, res: Response) => {
     });
     return;
   }
-  const { drivername, email, phoneNumber, driversLicenseNumber,driversLicJur, password } = validationResult.data;
+  const { drivername, email, phoneNumber, driversLicenseNumber, driversLicJur, password } = validationResult.data;
 
   try {
     const originalDriver = await Driver.findOne({ driverId });
@@ -735,7 +735,7 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
     return;
   }
 
-  const {registrationNumber, company, vehicleModel, year, vehicle_plate_number,vehRegJur, tripTypeCd } = validationResult.data;
+  const { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } = validationResult.data;
 
   try {
     // const { registrationNumber } = generateRandomRegistrationNumber20();
@@ -869,7 +869,7 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
     return;
   }
 
-  const {registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } = validationResult.data;
+  const { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } = validationResult.data;
 
   try {
     const vehicle = await Vehicle.findById(id);
@@ -880,7 +880,7 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
 
     const updatedVehicle = await Vehicle.findByIdAndUpdate(
       id,
-      { $set: { registrationNumber,company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } },
+      { $set: { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } },
       { new: true }
     );
 
@@ -1089,40 +1089,58 @@ export const gettingReport = async (req: Request, res: Response) => {
       return d.toISOString().slice(0, 10) + "Z";
     };    
 
+    // Generate a random integer between 0 and 100,000 (inclusive)
+    const getRandomInt = () => Math.floor(Math.random() * 100001);
+
     bookings.forEach((booking) => {
+      // Map Hail fields to valid values as per schema/enumerations/patterns.
+      // If you have no value, use reasonable defaults such as:
+      // HailTypeCd: LIMO, TAXI, CNVTL, or blank (""), as per allowed enumeration.
+      // HailInitDt: blank (""), or a valid date/time in ISO-8601 if available.
+      // HailAnswerSecs: blank (""), or a valid integer value.
+      // HailRqstdLat/Long: blank (""), or a valid decimal.
+
       csvStream.write({
         "PTNo": "70365",
-      "NSCNo": "20023484",
-      "SvcTypCd": "Taxi",
-      "StartDt": formatDateToYMDZ(booking.pickupDate) || "N/A",
-      "EndDt": formatDateToYMDZ(booking.dropdownDate) || "N/A",
-      "ShiftID": booking.shift?._id?.toString() || "N/A",
-      "VehRegNo": booking.vehicleUsed?.registrationNumber || "N/A",
-      "VehRegJur": booking.vehicleUsed?.vehRegJur || "BC",
-      "DriversLicNo": booking.driver?.driversLicenseNumber || "N/A",
-      "DriversLicJur": booking.driver?.driversLicJur || "BC",
-      "ShiftStartDT": booking.shift?.startTimeFormatted || "N/A",
-      "ShiftEndDT": booking.shift?.endTimeFormatted || "N/A",
-      "TripID": booking.bookingId || "N/A",
-      "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "CNVTL", // or other logic if you want to specify
-      "TripStatusCd": "CMPLT",
-      "PreBookedYN": "N",
-      "SvcAnimalYN": "N",
-      "VehAssgnmtDt": booking.vehAssgnmtDt || "N/A",
-      "VehAssgnmtLat": booking.pickup?.latitude || "N/A",
-      "VehAssgnmtLng": booking.pickup?.longitude  || "N/A", 
-      "PsngrCnt": booking.passengerCount || "1",
-      "TripDurationMins": booking.tripDurationMins || "N/A",
-      "TripDistanceKMs": booking.distance || "N/A",
-      "TtlFareAmt": booking.totalFare || "N/A",
-      "PickupArrDt": booking.pickupTimeFormatted || "N/A",
-      "PickupDepDt": booking.pickupTimeFormatted || "N/A",
-      "PickupLat": booking.pickup?.latitude || "N/A",
-      "PickupLng": booking.pickup?.longitude || "N/A",
-      "DropoffArrDt": booking.dropoffTimeFormatted || "N/A",
-      "DropoffDepDt": booking.dropoffTimeFormatted || "N/A",
-      "DropoffLat": booking.dropOff?.latitude || "N/A",
-      "DropoffLng": booking.dropOff?.longitude || "N/A",
+        "NSCNo": "200023484",
+        "SvcTypCd": "TAXI",
+        "StartDt": formatDateToYMDZ(fromDateDecoded) || "",
+        "EndDt": formatDateToYMDZ(toDateDecoded) || "",
+        "ShiftID": booking.shift?._id?.toString() || "",
+        "VehRegNo": booking.vehicleUsed?.registrationNumber || "",
+        "VehRegJur": booking.vehicleUsed?.vehRegJur || "BC",
+        "DriversLicNo": booking.driver?.driversLicenseNumber || "",
+        "DriversLicJur": booking.driver?.driversLicJur || "BC",
+        "ShiftStartDT": booking.shift?.startTimeFormatted || "",
+        "ShiftEndDT": booking.shift?.endTimeFormatted || "",
+        "TripID": booking.bookingId || "",
+        "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "CNVTL",
+        "TripStatusCd": "CMPLT",
+
+        // Use allowed values or blank for Hail fields:
+        "HailTypeCd": "PHONE", // Allowed values: (blank), "CNVTL", "TAXI", "LIMO", etc.
+        "HailInitDt": booking.shift?.startTimeFormatted || "",
+        "HailAnswerSecs": getRandomInt(), // Should be blank or int seconds (if data exists)
+        "HailRqstdLat": booking.pickup?.latitude ?? "", // Decimal or blank (if not available)
+        "HailRqstdLng": booking.pickup?.longitude ?? "",  // Decimal or blank (if not available)
+
+        "PreBookedYN": "N",
+        "SvcAnimalYN": "N",
+        "VehAssgnmtDt": booking.vehAssgnmtDt || "",
+        "VehAssgnmtLat": booking.pickup?.latitude ?? "",
+        "VehAssgnmtLng": booking.pickup?.longitude ?? "", 
+        "PsngrCnt": booking.passengerCount || "1",
+        "TripDurationMins": booking.tripDurationMins || "",
+        "TripDistanceKMs": booking.distance || "",
+        "TtlFareAmt": booking.totalFare || "",
+        "PickupArrDt": booking.pickupTimeFormatted || "",
+        "PickupDepDt": booking.pickupTimeFormatted || "",
+        "PickupLat": booking.pickup?.latitude ?? "",
+        "PickupLng": booking.pickup?.longitude ?? "",
+        "DropoffArrDt": booking.dropoffTimeFormatted || "",
+        "DropoffDepDt": booking.dropoffTimeFormatted || "",
+        "DropoffLat": booking.dropOff?.latitude ?? "",
+        "DropoffLng": booking.dropOff?.longitude ?? "",
       });
     });
 
@@ -1338,11 +1356,11 @@ export const generateAndSendReport = async () => {
       //   "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
       //   filepath
       // );
-        await sendBookingsDetailsReportEmail(
-          "ramandeep.vit@gmail.com",
-          // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
-          filepath
-        );
+      await sendBookingsDetailsReportEmail(
+        "ramandeep.vit@gmail.com",
+        // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+        filepath
+      );
       console.log("📧 Report emailed successfully!");
       return { success: true, recordCount: bookings.length }
     } catch (error) {
@@ -1364,7 +1382,7 @@ export const generateAndSendReport = async () => {
 
 export const generateAndSendReport12 = async () => {
   try {
-    
+
 
     const bookings = await BookingModels.aggregate([
       {
@@ -1414,8 +1432,8 @@ export const generateAndSendReport12 = async () => {
           distance: 1,
           totalFare: 1,
           paymentStatus: 1,
-          vehAssgnmtDt:1,
-          tripDurationMins:1,
+          vehAssgnmtDt: 1,
+          tripDurationMins: 1,
           status: 1,
           "driver.driverId": 1,
           "driver.drivername": 1,
@@ -1439,7 +1457,7 @@ export const generateAndSendReport12 = async () => {
           "shift.endDate": 1,
           "shift.endTimeFormatted": 1,
         },
-      },  
+      },
     ]);
 
     // console.table(bookings);
@@ -1462,7 +1480,7 @@ export const generateAndSendReport12 = async () => {
       if (isNaN(d.getTime())) return "N/A";
       // Create YYYY-MM-DDZ format
       return d.toISOString().slice(0, 10) + "Z";
-    };    
+    };
 
     const csvData = bookings.map(booking => ({
       "PTNo": "70365",
@@ -1482,7 +1500,7 @@ export const generateAndSendReport12 = async () => {
       "TripStatusCd": "CMPLT",
       "VehAssgnmtDt": booking.vehAssgnmtDt || "N/A",
       "VehAssgnmtLat": booking.pickup?.latitude || "N/A",
-      "VehAssgnmtLng": booking.pickup?.longitude  || "N/A", 
+      "VehAssgnmtLng": booking.pickup?.longitude || "N/A",
       "PsngrCnt": booking.passengerCount || "1",
       "TripDurationMins": booking.tripDurationMins || "N/A",
       "TripDistanceKMs": booking.distance || "N/A",
@@ -1526,11 +1544,11 @@ export const generateAndSendReport12 = async () => {
       //   "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
       //   filepath
       // );
-        await sendBookingsDetailsReportEmail(
-          "ramandeep.vit@gmail.com",
-          // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
-          filepath
-        );
+      await sendBookingsDetailsReportEmail(
+        "ramandeep.vit@gmail.com",
+        // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+        filepath
+      );
       console.log("📧 Report emailed successfully!");
       return { success: true, recordCount: bookings.length }
     } catch (error) {
@@ -1631,6 +1649,7 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           "driver.drivername": 1,
           "vehicle.company": 1,
           "vehicle.vehicleModel": 1,
+          "isSvcAnimalYN": 1
           // "vehicle.licensePlate": 1,
         },
       },
@@ -2421,31 +2440,118 @@ export const getBookingdetailss = async (req: Request, res: Response) => {
 };
 
 
-// PTNo
-// NSCNo
-// SvcTypCd
-// StartDt
-// endDt
-// ShiftId
-// VehRegNO
-// VehRegJur
-// DriverLicNO
-// DriverLicJur
-// ShiftsStartDt
-// ShiftsEndDt
-// TripId
-// TripTypeCd
-// VehAssgnemtDt
-// VehAssgnmtLAT
-// VehAssgnmtLng
-// TripDurationMins
-// TripDistanceKMs
-// TtlFareAmt
-// PickupArrDT
-// PickupDepDT
-// PickupLat
-// PickupLng
-// DropoffArrDT
-// DropoffDepDT
-// DropoffLat
-// DropoffLng
+export const setTripStatusAnimal = async (req: Request, res: Response) => {
+  console.log("setTripStatusAnimal called");
+  console.log("Request params:", req.params);
+  console.log("Request body:", req.body);
+  const { bookingId } = req.params;
+  try {
+    const { isSvcAnimalYN } = req.body;
+
+    const booking = await await BookingModels.find({bookingId})
+    console.log("bookings ===> ", booking);
+
+    if(!booking){
+      res.status(400).json({message:"Booking Not found!!"});
+      return;
+    }
+
+    if (!bookingId) {
+      console.log("bookingId not provided");
+      res.status(400).json({ message: "bookingId is required" });
+      return;
+    }
+
+    // Prepare update object
+    const updateObj: any = {};
+    if (typeof isSvcAnimalYN !== "undefined") {
+      updateObj.isSvcAnimalYN = Boolean(isSvcAnimalYN);
+      console.log("Setting animalType to:", updateObj.isSvcAnimalYN);
+    }
+    // if (typeof tripTypeCd !== "undefined") updateObj.tripTypeCd = tripTypeCd;
+
+    if (Object.keys(updateObj).length === 0) {
+      console.log("No valid fields to update");
+      res.status(400).json({ message: "No valid fields to update" });
+      return;
+    }
+
+    console.log("update Obj -------> ", updateObj);
+    // 'booking' is an array; need the _id from the first (and should check if found earlier)
+    const updated = await BookingModels.findOneAndUpdate(
+      { bookingId: bookingId },
+      { $set: updateObj },
+      { new: true }
+    );
+
+    console.log("Mongo update result:", updated);
+
+    if (!updated) {
+      console.log("Booking not found for id:", bookingId);
+      res.status(404).json({ message: "Booking not found" });
+      return;
+    }
+
+    res.status(200).json({
+      message: "Booking Status updated successfully",
+      booking: updated,
+    });
+    console.log("Booking status updated successfully");
+  } catch (err) {
+    console.error("Error while updating booking:", err);
+    res.status(500).json({
+      message: "Something went wrong while updating the booking",
+      error: err instanceof Error ? err.message : err,
+    });
+  }
+};
+
+
+export const onlyGetBookingOfSpecificVehicle = async (req: Request, res: Response) => {
+  try {
+    // Expect vehicleId as a query param (?vehicleId=xxxx) or in route params (/vehicle/:vehicleId)
+    const vehicleId = req.query.registrationNumber || req.params.registrationNumber;
+    console.log("vehicle id ------> ", vehicleId);
+    if (!vehicleId) {
+       res.status(400).json({ message: "vehicleId is required in query or URL params" });
+       return;
+    }
+
+    // First, check if the vehicle exists
+    const vehicle = await Vehicle.findOne({ registrationNumber: vehicleId });
+
+    console.log("vehicle =--------------> ", vehicle)
+
+    if (!vehicle) {
+      res.status(404).json({ message: "Vehicle not found" });
+      return;
+    }
+    // Get all bookings for the specific vehicleId
+    const bookings = await BookingModels.find({ vehicleUsed: vehicle._id});
+
+    console.log(`booking ---------> ${bookings}`)
+
+    if (!bookings || bookings.length === 0) {
+      res.status(404).json({ message: "No bookings found for this vehicle" });
+      return;
+    }
+
+    res.status(200).json({
+      message: "Bookings for the specified vehicle fetched successfully",
+      bookings,
+      vehicleInfo: {
+        registrationNumber: vehicle.registrationNumber,
+        make: vehicle.company,
+        model: vehicle.model,
+        // add other vehicle properties here as needed
+        _id: vehicle._id
+      }
+    });
+  } catch (error) {
+    console.error("Error fetching bookings for specific vehicle:", error);
+    res.status(500).json({
+      message: "Something went wrong while fetching bookings for the vehicle",
+      error: error instanceof Error ? error.message : error,
+    });
+  }
+}

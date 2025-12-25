@@ -58,26 +58,29 @@ app.use("/api/driver", driverRoute);
 
 
 
-io.on("connection", (socket) =>{
-  // console.log("Client connected: ", socket.id);
+io.on("connection", (socket) => {
 
-  const sentTime = () =>{
-    const currentTime = new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
+  
+  const sentTime = () => {
+    const now = new Date();
+    const formattedTime = now.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
       hour12: true,
-      timeZone: 'America/Vancouver', // ✅ IST
+      timeZone: "America/Vancouver", // ✅ PST
     });
-    socket.emit("serverTime", currentTime);
-  }
+    socket.emit("serverTime", formattedTime);
+    // console.log(`Time sent to ${socket.id}: ${formattedTime}`);
+  };
 
-  const interval = setInterval(sentTime,1000);
+  const interval = setInterval(sentTime, 1000);
 
-  socket.on("disconnect", () =>{
+  socket.on("disconnect", () => {
     // console.log("Client disconnected", socket.id);
     clearInterval(interval);
-  })
-})
+  });
+});
 
 server.listen(PORT, () => {
   console.log(`server is listen on http://localhost:${PORT}`);

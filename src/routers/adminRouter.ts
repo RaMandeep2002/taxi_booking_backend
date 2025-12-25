@@ -36,6 +36,8 @@ import {
   stopAllShift,
   getBookingdeteailsone,
   getBookingdetailss,
+  setTripStatusAnimal,
+  onlyGetBookingOfSpecificVehicle,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -159,5 +161,7 @@ router.post("/stopAllShifts", stopAllShift);
 
 router.get("/shiftsHistory", getAllShifts12)
 router.get("/getallshiftwithdriverandvehicle", getDriverWithAssignedVehicle)
+router.put("/setTripStatusAnimalandTriptype/:bookingId", authenticate, authorize(["admin"]), setTripStatusAnimal);
+router.get("/onlyGetBookingOfSpecificVehicle/:registrationNumber", authenticate, authorize(["admin"]), onlyGetBookingOfSpecificVehicle);
 
 export default router;
