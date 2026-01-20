@@ -24,6 +24,8 @@ import path from "path";
 import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { record } from "zod";
 import { formatZodErrors } from "../utils/FormatZodError";
+import { getPTDWConfig } from "../config/ptdw.config";
+import { PTDWSubmissionService } from "./ptdw-submission.service";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
@@ -1162,7 +1164,8 @@ export const gettingReport = async (req: Request, res: Response) => {
   }
 };
 
-export const generateAndSendReport = async () => {
+
+export const generateAndSendReport = async (environment: 'production' | 'test' = 'test',submitToPTDW: boolean = true) => {
   try {
     const today = new Date();
     console.log("Today ==> ", today);
@@ -1192,24 +1195,24 @@ export const generateAndSendReport = async () => {
     console.log("toDate.toISOString() ---> ", toDate.toISOString());
 
     const bookings = await BookingModels.aggregate([
-      {
-        $addFields: {
-          pickupDateObj: {
-            $dateFromString: {
-              dateString: "$pickupDate",
-              format: "%m/%d/%Y",
-            }
-          }
-        }
-      },
-      {
-        $match: {
-          pickupDateObj: {
-            $gte: new Date(fromDate),
-            $lte: new Date(toDate),
-          },
-        },
-      },
+      // {
+      //   $addFields: {
+      //     pickupDateObj: {
+      //       $dateFromString: {
+      //         dateString: "$pickupDate",
+      //         format: "%m/%d/%Y",
+      //       }
+      //     }
+      //   }
+      // },
+      // {
+      //   $match: {
+      //     pickupDateObj: {
+      //       $gte: fromDate,
+      //       $lte: toDate,
+      //     },
+      //   },
+      // },
       {
         $lookup: {
           from: "drivers",
@@ -1243,11 +1246,12 @@ export const generateAndSendReport = async () => {
           bookingId: 1,
           customerName: 1,
           phoneNumber: 1,
-          "pickup.address": 1,
+          pickup: 1,
           dropOff: 1,
           pickuptime: 1,
           pickupDate: 1,
           pickupTimeFormatted: 1,
+          dropoffTimeFormatted: 1,
           pickupMonth: 1,
           pickupWeek: 1,
           dropdownDate: 1,
@@ -1256,6 +1260,8 @@ export const generateAndSendReport = async () => {
           distance: 1,
           totalFare: 1,
           paymentStatus: 1,
+          vehAssgnmtDt:1,
+          tripDurationMins:1,
           status: 1,
           "driver.driverId": 1,
           "driver.drivername": 1,
@@ -1270,15 +1276,16 @@ export const generateAndSendReport = async () => {
           "vehicleUsed.year": 1,
           "vehicleUsed.company": 1,
           "vehicleUsed.vehicle_plate_number": 1,
-          "vehicleUsed.vehRegJur": 1,
           "vehicleUsed.tripTypeCd": 1,
           "shift._id": 1,
           "shift.startTime": 1,
           "shift.startDate": 1,
+          "shift.startTimeFormatted": 1,
           "shift.endTime": 1,
           "shift.endDate": 1,
+          "shift.endTimeFormatted": 1,
         },
-      },
+      },  
     ]);
 
     console.table(bookings);
@@ -1294,37 +1301,45 @@ export const generateAndSendReport = async () => {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
+    const formatDateToYMDZ = (date: any) => {
+      if (!date) return "N/A";
+      const d = new Date(date);
+      if (isNaN(d.getTime())) return "N/A";
+      // Create YYYY-MM-DDZ format
+      return d.toISOString().slice(0, 10) + "Z";
+    };    
+
     const csvData = bookings.map(booking => ({
       "PTNo": "70365",
       "NSCNo": "20023484",
       "SvcTypCd": "Taxi",
-      "StartDt": booking.pickupDate || "N/A",
-      "EndDt": booking.dropdownDate || "N/A",
+      "StartDt": formatDateToYMDZ(booking.pickupDate) || "N/A",
+      "EndDt": formatDateToYMDZ(booking.dropdownDate) || "N/A",
       "ShiftID": booking.shift?._id?.toString() || "N/A",
       "VehRegNo": booking.vehicleUsed?.registrationNumber || "N/A",
       "VehRegJur": booking.vehicleUsed?.vehRegJur || "N/A",
-      "DriversLicNo": booking.driver?.licenseNumber || "N/A",
-      "DriversLicJur": booking.driver?.licenseJurisdiction || "N/A",
-      "ShiftStartDT": booking.shift?.startDate || "N/A",
-      "ShiftEndDT": booking.shift?.endDate || "N/A",
+      "DriversLicNo": booking.driver?.driversLicenseNumber || "N/A",
+      "DriversLicJur": booking.driver?.driversLicJur || "N/A",
+      "ShiftStartDT": booking.shift?.startTimeFormatted || "N/A",
+      "ShiftEndDT": booking.shift?.endTimeFormatted || "N/A",
       "TripID": booking.bookingId || "N/A",
-      "TripTypeCd": booking?.tripTypeCd || "N/A", // or other logic if you want to specify
-      "TripStatusCd": booking.status || "N/A",
-      "VehAssgnmtDt": booking.vehAssignmentDate || "N/A",
-      "VehAssgnmtLat": booking.vehAssignmentLat || "N/A",
-      "VehAssgnmtLng": booking.vehAssignmentLng || "N/A",
+      "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "N/A", // or other logic if you want to specify
+      "TripStatusCd": "CMPLT",
+      "VehAssgnmtDt": booking.vehAssgnmtDt || "N/A",
+      "VehAssgnmtLat": booking.pickup?.latitude || "N/A",
+      "VehAssgnmtLng": booking.pickup?.longitude  || "N/A", 
       "PsngrCnt": booking.passengerCount || "1",
       "TripDurationMins": booking.tripDurationMins || "N/A",
       "TripDistanceKMs": booking.distance || "N/A",
       "TtlFareAmt": booking.totalFare || "N/A",
-      "PickupArrDt": booking.pickupArriveDate || "N/A",
-      "PickupDepDt": booking.pickupDepartDate || "N/A",
-      "PickupLat": booking.pickup?.lat || "N/A",
-      "PickupLng": booking.pickup?.lng || "N/A",
-      "DropoffArrDt": booking.dropoffArriveDate || "N/A",
-      "DropoffDepDt": booking.dropoffDepartDate || "N/A",
-      "DropoffLat": booking.dropOff?.lat || "N/A",
-      "DropoffLng": booking.dropOff?.lng || "N/A",
+      "PickupArrDt": booking.pickupTimeFormatted || "N/A",
+      "PickupDepDt": booking.pickupTimeFormatted || "N/A",
+      "PickupLat": booking.pickup?.latitude || "N/A",
+      "PickupLng": booking.pickup?.longitude || "N/A",
+      "DropoffArrDt": booking.dropoffTimeFormatted || "N/A",
+      "DropoffDepDt": booking.dropoffTimeFormatted || "N/A",
+      "DropoffLat": booking.dropOff?.latitude || "N/A",
+      "DropoffLng": booking.dropOff?.longitude || "N/A",
     }));
 
     // Print top 5 rows of csvData
@@ -1350,19 +1365,71 @@ export const generateAndSendReport = async () => {
 
     console.log(`📄 CSV file created: ${filepath}`);
 
+
+    let ptdwResult = null;
+    if(submitToPTDW){
+      try{
+        console.log('\n🔄 Starting PTDW API submission...');
+
+        const startDate = fromDate.toISOString().split("T")[0];
+        const endDate = toDate.toISOString().split("T")[0];
+
+        
+        console.log(`📅 Submitting data for: ${startDate} to ${endDate}`);
+
+        const environment = process.env.PTDW_ENVIRONMENT === 'production' ? 'production' : 'test';
+        console.log(`🌍 Using ${environment} environment`);
+
+        let config;
+        try {
+          config = getPTDWConfig(environment);
+          console.log("config ---------> ", config)
+        } catch (e) {
+          console.error(`❌ Exception during PTDW submission:`, e);
+          throw e;
+        }
+        const ptdwService = new PTDWSubmissionService(config, 'SALMON ARM TAXI (1978) LTD.');
+
+        ptdwResult = await ptdwService.submitCSVData(csvData, startDate, endDate);
+
+        console.log("ptdwResult ------> ", ptdwResult)
+
+        if (ptdwResult && ptdwResult.success === true) {
+          console.log(`✅ PTDW Submission successful!`);
+          console.log(`   Submission ID: ${ptdwResult.submissionId}`);
+          console.log(`   Status: ${ptdwResult.message}`);
+        }
+        else {
+          console.error('❌ PTDW submission failed: Unknown error or no error message returned.');
+        }
+      } catch (error) {
+        console.error('❌ Exception during PTDW submission:', error);
+      }
+    }else{
+      console.log('⏭️ PTDW submission skipped (disabled)');
+    }
+
     try {
       // await sendBookingsDetailsReportEmail(
       //   "salmonarmtaxis@gmail.com",
       //   "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
       //   filepath
       // );
-      await sendBookingsDetailsReportEmail(
-        "ramandeep.vit@gmail.com",
-        // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
-        filepath
-      );
+        await sendBookingsDetailsReportEmail(
+          "ramandeep.vit@gmail.com",
+          // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
+          filepath
+        );
       console.log("📧 Report emailed successfully!");
-      return { success: true, recordCount: bookings.length }
+      return { 
+        success: true, 
+        recordCount: bookings.length,
+        ptdwSubmission: ptdwResult,
+        dateRange: {
+          from: fromDate.toISOString().split('T')[0],
+          to: toDate.toISOString().split('T')[0]
+        }
+      };
     } catch (error) {
       console.error("📧 Report emailed Failed..");
       throw error;
@@ -1374,11 +1441,44 @@ export const generateAndSendReport = async () => {
         console.error("⚠️ Failed to delete temporary file:", unlinkErr);
       }
     }
+
+   
   } catch (err) {
     console.error("Error in generating report and sending email:", err);
     throw err;
   }
 };
+
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  
+  if (args.length < 2) {
+    console.log('Usage: ts-node ptdw-monthly-submit.ts <year> <month> [environment]');
+    console.log('Example: ts-node ptdw-monthly-submit.ts 2024 11 test');
+    console.log('Note: Month is 0-based (0=Jan, 11=Dec)');
+    process.exit(1);
+  }
+
+  const year = parseInt(args[0]);
+  const month = parseInt(args[1]);
+  const environment = (args[2] || 'test') as 'production' | 'test';
+  
+  if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
+    console.error('Invalid year or month. Month must be 0-11.');
+    process.exit(1);
+  }
+
+  generateAndSendReport(environment)
+    .then(result => {
+      console.log('\n📋 Final Result:', result);
+      process.exit(result.success ? 0 : 1);
+    })
+    .catch(error => {
+      console.error('Fatal error:', error);
+      process.exit(1);
+    });
+}
+
 
 export const generateAndSendReport12 = async () => {
   try {
@@ -1571,8 +1671,9 @@ export const generateAndSendReport12 = async () => {
 
 export const gettingReportAndSendEmail = async (req: Request, res: Response) => {
   try {
-    // const result = await generateAndSendReport();
-    const result = await generateAndSendReport12();
+    const result = await generateAndSendReport("test", true);
+    // const result = await generateAndSendReport("production", true);
+    // const result = await generateAndSendReport12();
 
     res.status(200).json({
       message: "Report generator and Emailed successfully!",
@@ -1631,26 +1732,46 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
       {
         $project: {
           bookingId: 1,
+          customerName: 1,
+          phoneNumber: 1,
           pickup: 1,
           dropOff: 1,
           pickuptime: 1,
           pickupDate: 1,
           pickupTimeFormatted: 1,
+          dropoffTimeFormatted: 1,
           pickupMonth: 1,
           pickupWeek: 1,
           dropdownDate: 1,
           dropdownTime: 1,
-          wating_time: 1,
-          wating_time_formated: 1,
+          arrived: 1,
           distance: 1,
           totalFare: 1,
           paymentStatus: 1,
+          vehAssgnmtDt:1,
+          tripDurationMins:1,
           status: 1,
+          "driver.driverId": 1,
           "driver.drivername": 1,
-          "vehicle.company": 1,
-          "vehicle.vehicleModel": 1,
-          "isSvcAnimalYN": 1
-          // "vehicle.licensePlate": 1,
+          "driver.email": 1,
+          "driver.phoneNumber": 1,
+          "driver.driversLicenseNumber": 1,
+          "driver.driversLicJur": 1,
+          "driver.status": 1,
+          "driver.isOnline": 1,
+          "vehicleUsed.registrationNumber": 1,
+          "vehicleUsed.vehicleModel": 1,
+          "vehicleUsed.year": 1,
+          "vehicleUsed.company": 1,
+          "vehicleUsed.vehicle_plate_number": 1,
+          "vehicleUsed.tripTypeCd": 1,
+          "shift._id": 1,
+          "shift.startTime": 1,
+          "shift.startDate": 1,
+          "shift.startTimeFormatted": 1,
+          "shift.endTime": 1,
+          "shift.endDate": 1,
+          "shift.endTimeFormatted": 1,
         },
       },
 

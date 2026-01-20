@@ -678,6 +678,20 @@ export const start_Ride = async (req: Request, res: Response) => {
     // Generate booking ID
     const bookingId = generateBookingId();
 
+    const pickuptime = new Date().toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+      timeZone: 'America/Vancouver',
+    });
+
+    const pickupDate = new Date().toLocaleDateString('en-US', {
+      month: '2-digit',
+      day: '2-digit',
+      year: 'numeric',
+      timeZone: 'America/Vancouver',
+    });
+
     // we set vehAssgnmtDt here as current date-time ISO string
     // let vehAssgnmtDt: string = new Date().toISOString();
 
@@ -696,19 +710,10 @@ export const start_Ride = async (req: Request, res: Response) => {
         longitude: null,
         address: null
       },
-      pickuptime: new Date().toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'America/Vancouver',
-      }),
-      pickupDate: new Date().toLocaleDateString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-        timeZone: 'America/Vancouver',
-      }),
-      pickupTimeFormatted: now.toISOString(),
+      pickuptime,
+      pickupDate,
+      // Combine pickupDate and pickuptime for ISO format as required ("YYYY-MM-DDTHH:mm:ss.sssZ")
+      pickupTimeFormatted: new Date(`${pickupDate} ${pickuptime} America/Vancouver`).toISOString(),
       dropoffTimeFormatted: null,
       pickupMonth: now.toLocaleString('default', { month: 'long' }),
       pickupWeek: Math.ceil(now.getDate() / 7),

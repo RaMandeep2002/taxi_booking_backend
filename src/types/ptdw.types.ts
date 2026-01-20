@@ -16,10 +16,10 @@ export interface JWTPayload {
 }
 export interface PTDWRequest {
     PTNo: string;
-    XMLData: string;
+    XMLData?: string;
     StartDate: string;
     EndDate: string;
-  }
+}
 export interface PTDWResponse {
     'Status code': number;
     Reason: string;
@@ -35,6 +35,7 @@ export interface SubmissionResult {
     submissionId?: string;
     message?: string;
     error?: string;
+    headers?: string;
 }
 
 
