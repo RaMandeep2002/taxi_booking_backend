@@ -95,15 +95,15 @@ export const driverInformation = async (req: Request, res: Response) => {
     const token = req.headers.authorization?.split(" ")[1];
 
     if (!token) {
-       res.status(400).json({ message: "Authorization token is required!" });
-       return;
+      res.status(400).json({ message: "Authorization token is required!" });
+      return;
     }
 
     const driverIdIdentity = getDriverId(token);
 
     if (!driverIdIdentity) {
-       res.status(400).json({ message: "Driver identity is required!" });
-       return
+      res.status(400).json({ message: "Driver identity is required!" });
+      return
     }
 
     const driver = await Driver.findOne({ driverId: driverIdIdentity }).select("_id drivername email driversLicenseNumber isActive");
@@ -332,7 +332,7 @@ export const activeShift = async (req: Request, res: Response) => {
       driverId: driver._id,
       isActive: true
     }).populate("vehicleUsed");
-    
+
     console.log("exisitingShift ------> ", exisitingShift);
 
 
@@ -342,7 +342,7 @@ export const activeShift = async (req: Request, res: Response) => {
     }).populate("vehicleUsed");
 
     if (!exisitingShift) {
-       res.status(404).json({
+      res.status(404).json({
         message: "No active shift found",
         shift: null,
       });
@@ -350,7 +350,7 @@ export const activeShift = async (req: Request, res: Response) => {
     }
 
     if (!activeBooking) {
-       res.status(404).json({
+      res.status(404).json({
         message: "No ongoing booking found for this shift",
         shift: exisitingShift,
         booking: null,
@@ -358,13 +358,14 @@ export const activeShift = async (req: Request, res: Response) => {
       return;
 
     }
-    
 
 
-    res.status(200).json({ message: "Active shift found",
+
+    res.status(200).json({
+      message: "Active shift found",
       shift: exisitingShift,
-      booking: activeBooking? activeBooking : null
-     });
+      booking: activeBooking ? activeBooking : null
+    });
   } catch (error) {
     res.status(500).json({ message: "Error Fetching Active shifts", error })
   }
@@ -495,7 +496,7 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
     const shiftendTime = endTime || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: 'numeric', hour12: true });
 
     const dateParts = shiftendTime.split(/[\/\-]/);
-  
+
     const [month, day, year] = dateParts.length === 3
       ? [parseInt(dateParts[0]), parseInt(dateParts[1]), parseInt(dateParts[2])]
       : [null, null, null];
@@ -548,7 +549,7 @@ export const stopShiftwithtime = async (req: Request, res: Response) => {
     activeShift.endTime = endTime;
     activeShift.endDate = endDate;
     activeShift.endTimeFormatted = endTimeFormatted;
-    activeShift.endMonth = end.toLocaleString('default', { month: 'long' });  
+    activeShift.endMonth = end.toLocaleString('default', { month: 'long' });
     activeShift.isActive = false;
     activeShift.totalDuration = `${hours}h ${minutes}m ${seconds}s`;
 
@@ -677,21 +678,6 @@ export const start_Ride = async (req: Request, res: Response) => {
 
     // Generate booking ID
     const bookingId = generateBookingId();
-
-    const pickuptime = new Date().toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-      timeZone: 'America/Vancouver',
-    });
-
-    const pickupDate = new Date().toLocaleDateString('en-US', {
-      month: '2-digit',
-      day: '2-digit',
-      year: 'numeric',
-      timeZone: 'America/Vancouver',
-    });
-
     // we set vehAssgnmtDt here as current date-time ISO string
     // let vehAssgnmtDt: string = new Date().toISOString();
 
@@ -710,10 +696,19 @@ export const start_Ride = async (req: Request, res: Response) => {
         longitude: null,
         address: null
       },
-      pickuptime,
-      pickupDate,
-      // Combine pickupDate and pickuptime for ISO format as required ("YYYY-MM-DDTHH:mm:ss.sssZ")
-      pickupTimeFormatted: new Date(`${pickupDate} ${pickuptime} America/Vancouver`).toISOString(),
+      pickuptime: new Date().toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'America/Vancouver',
+      }),
+      pickupDate: new Date().toLocaleDateString('en-US', {
+        month: '2-digit',
+        day: '2-digit',
+        year: 'numeric',
+        timeZone: 'America/Vancouver',
+      }),
+      pickupTimeFormatted: now.toISOString(),
       dropoffTimeFormatted: null,
       pickupMonth: now.toLocaleString('default', { month: 'long' }),
       pickupWeek: Math.ceil(now.getDate() / 7),
@@ -835,7 +830,7 @@ export const start_Ride_with_pickuptime = async (req: Request, res: Response) =>
       pickupMonth: now.toLocaleString('default', { month: 'long' }),
       pickupWeek: Math.ceil(now.getDate() / 7),
       driver: driver._id,
-      shift : activeShift._id,
+      shift: activeShift._id,
       status: "ongoing",
       arrived: true,
       paymentStatus: "pending",
@@ -989,21 +984,21 @@ export const end_Ride = async (req: Request, res: Response) => {
         year: 'numeric',
         timeZone: 'America/Vancouver', // ✅ IST
       }),
-      booking.dropoffTimeFormatted =  new Date().toISOString();
-      // Calculate the trip duration in minutes based on pickupTimeFormatted and current time
-      if (booking.pickupTimeFormatted) {
-        const pickupTime = new Date(booking.pickupTimeFormatted);
-        const dropoffTime = new Date();
-        const durationMs = dropoffTime.getTime() - pickupTime.getTime();
-        booking.tripDurationMins = Math.round(durationMs / 60000); // Convert ms to minutes
-      } else {
-        booking.tripDurationMins = 0;
-      }
-      booking.dropOff = {
-        latitude: dropLatitude,
-        longitude: dropLongitude,
-        address: dropAddress
-      };
+      booking.dropoffTimeFormatted = new Date().toISOString();
+    // Calculate the trip duration in minutes based on pickupTimeFormatted and current time
+    if (booking.pickupTimeFormatted) {
+      const pickupTime = new Date(booking.pickupTimeFormatted);
+      const dropoffTime = new Date();
+      const durationMs = dropoffTime.getTime() - pickupTime.getTime();
+      booking.tripDurationMins = Math.round(durationMs / 60000); // Convert ms to minutes
+    } else {
+      booking.tripDurationMins = 0;
+    }
+    booking.dropOff = {
+      latitude: dropLatitude,
+      longitude: dropLongitude,
+      address: dropAddress
+    };
 
     activeShift.totalEarnings = parseFloat(
       (activeShift.totalEarnings + totalFare).toFixed(2)
@@ -1312,7 +1307,7 @@ export const logout = async (req: Request, res: Response) => {
 
     const activeShift = await Shift.findOne({ driverId: driver._id, isActive: true });
     if (!activeShift) {
-      res.status(200).json({ message: "Logout successfully"})
+      res.status(200).json({ message: "Logout successfully" })
       return;
     }
 

@@ -1042,8 +1042,8 @@ export const gettingReport = async (req: Request, res: Response) => {
           distance: 1,
           totalFare: 1,
           paymentStatus: 1,
-          vehAssgnmtDt:1,
-          tripDurationMins:1,
+          vehAssgnmtDt: 1,
+          tripDurationMins: 1,
           status: 1,
           "driver.driverId": 1,
           "driver.drivername": 1,
@@ -1070,6 +1070,9 @@ export const gettingReport = async (req: Request, res: Response) => {
       },
     ]);
 
+    console.log("First 20 bookings from aggregate:");
+    console.table(bookings.slice(0, 20));
+
     if (!bookings.length) {
       res.status(404).json({ message: "No bookings found" });
       return;
@@ -1081,7 +1084,6 @@ export const gettingReport = async (req: Request, res: Response) => {
 
     csvStream.pipe(writeableStream);
 
-
     // Helper function to format date as yyyy-mm-ddZ
     const formatDateToYMDZ = (date: any) => {
       if (!date) return "N/A";
@@ -1089,20 +1091,44 @@ export const gettingReport = async (req: Request, res: Response) => {
       if (isNaN(d.getTime())) return "N/A";
       // Create YYYY-MM-DDZ format
       return d.toISOString().slice(0, 10) + "Z";
-    };    
+    };
 
     // Generate a random integer between 0 and 100,000 (inclusive)
     const getRandomInt = () => Math.floor(Math.random() * 100001);
 
     bookings.forEach((booking) => {
-      // Map Hail fields to valid values as per schema/enumerations/patterns.
-      // If you have no value, use reasonable defaults such as:
-      // HailTypeCd: LIMO, TAXI, CNVTL, or blank (""), as per allowed enumeration.
-      // HailInitDt: blank (""), or a valid date/time in ISO-8601 if available.
-      // HailAnswerSecs: blank (""), or a valid integer value.
-      // HailRqstdLat/Long: blank (""), or a valid decimal.
+      // If any field that MUST be present for the row is null/undefined, skip writing the row.
+      // Per the prompt, only skip if dropoffLat or dropoffLng are empty (undefined or null or ""), not the whole row.
+      // Some CSV columns can just be omitted, but "missing fields" in CSV means leaving cell blank.
 
-      csvStream.write({
+      // Do not include the booking if both dropoff latitude and longitude are empty/undefined/null/""
+      const dropoffLat = booking.dropOff?.latitude;
+      const dropoffLng = booking.dropOff?.longitude;
+      const shiftendDate = booking.shift?.endTimeFormatted;
+      const { tripDurationMins, distance, totalFare } = booking;
+
+      // Parse distance to number for comparison
+      let distanceValue = 0;
+      if (distance !== undefined && distance !== null && distance !== "") {
+        distanceValue = typeof distance === "string" ? parseFloat(distance) : distance;
+      }
+
+      // Exclude the booking if distance is less than 1
+      if (
+        dropoffLat === undefined || dropoffLat === null || dropoffLat === "" ||
+        dropoffLng === undefined || dropoffLng === null || dropoffLng === "" ||
+        (tripDurationMins === undefined || tripDurationMins === null || tripDurationMins === "" || tripDurationMins === 0) ||
+        (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
+        (distance === undefined || distance === null || distance === "" || distance === 0) ||
+        (distanceValue < 1) ||
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)
+      ) {
+        // Skip this booking -- do not write row
+        return;
+      }
+
+      // Prepare the output object, omitting any fields that are null/undefined
+      const row: Record<string, any> = {
         "PTNo": "70365",
         "NSCNo": "200023484",
         "SvcTypCd": "TAXI",
@@ -1118,19 +1144,16 @@ export const gettingReport = async (req: Request, res: Response) => {
         "TripID": booking.bookingId || "",
         "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "CNVTL",
         "TripStatusCd": "CMPLT",
-
-        // Use allowed values or blank for Hail fields:
-        "HailTypeCd": "PHONE", // Allowed values: (blank), "CNVTL", "TAXI", "LIMO", etc.
+        "HailTypeCd": "PHONE",
         "HailInitDt": booking.shift?.startTimeFormatted || "",
-        "HailAnswerSecs": getRandomInt(), // Should be blank or int seconds (if data exists)
-        "HailRqstdLat": booking.pickup?.latitude ?? "", // Decimal or blank (if not available)
-        "HailRqstdLng": booking.pickup?.longitude ?? "",  // Decimal or blank (if not available)
-
+        "HailAnswerSecs": getRandomInt(),
+        "HailRqstdLat": booking.pickup?.latitude ?? "",
+        "HailRqstdLng": booking.pickup?.longitude ?? "",
         "PreBookedYN": "N",
         "SvcAnimalYN": "N",
-        "VehAssgnmtDt": booking.vehAssgnmtDt || "",
+        "VehAssgnmtDt": booking.pickupTimeFormatted || "",
         "VehAssgnmtLat": booking.pickup?.latitude ?? "",
-        "VehAssgnmtLng": booking.pickup?.longitude ?? "", 
+        "VehAssgnmtLng": booking.pickup?.longitude ?? "",
         "PsngrCnt": booking.passengerCount || "1",
         "TripDurationMins": booking.tripDurationMins || "",
         "TripDistanceKMs": booking.distance || "",
@@ -1141,9 +1164,23 @@ export const gettingReport = async (req: Request, res: Response) => {
         "PickupLng": booking.pickup?.longitude ?? "",
         "DropoffArrDt": booking.dropoffTimeFormatted || "",
         "DropoffDepDt": booking.dropoffTimeFormatted || "",
-        "DropoffLat": booking.dropOff?.latitude ?? "",
-        "DropoffLng": booking.dropOff?.longitude ?? "",
+        "DropoffLat": dropoffLat,
+        "DropoffLng": dropoffLng,
+      };
+
+      // Remove keys with undefined, null or "" values from row (excluding "0" or false)
+      // Remove keys whose value is undefined, null, or an empty string (expects: do not remove if value is 0 or false)
+      Object.keys(row).forEach((key) => {
+        if (
+          row[key] === undefined ||
+          row[key] === null ||
+          (row[key] === "" && row[key] !== false)
+        ) {
+          delete row[key];
+        }
       });
+
+      csvStream.write(row);
     });
 
     csvStream.end();
@@ -1165,7 +1202,7 @@ export const gettingReport = async (req: Request, res: Response) => {
 };
 
 
-export const generateAndSendReport = async (environment: 'production' | 'test' = 'test',submitToPTDW: boolean = true) => {
+export const generateAndSendReport = async (environment: 'production' | 'test' = 'test', submitToPTDW: boolean = true) => {
   try {
     const today = new Date();
     console.log("Today ==> ", today);
@@ -1260,8 +1297,8 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
           distance: 1,
           totalFare: 1,
           paymentStatus: 1,
-          vehAssgnmtDt:1,
-          tripDurationMins:1,
+          vehAssgnmtDt: 1,
+          tripDurationMins: 1,
           status: 1,
           "driver.driverId": 1,
           "driver.drivername": 1,
@@ -1285,7 +1322,7 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
           "shift.endDate": 1,
           "shift.endTimeFormatted": 1,
         },
-      },  
+      },
     ]);
 
     console.table(bookings);
@@ -1295,11 +1332,15 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
     const filename = `booking_${timestamp}.csv`;
     const filepath = path.resolve(__dirname, "..", 'temp', filename);
 
-
     const tempDir = path.dirname(filepath);
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
+
+    const writeableStream = fs.createWriteStream(filepath);
+    const csvStream = format({ headers: true });
+
+    csvStream.pipe(writeableStream);
 
     const formatDateToYMDZ = (date: any) => {
       if (!date) return "N/A";
@@ -1307,82 +1348,127 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
       if (isNaN(d.getTime())) return "N/A";
       // Create YYYY-MM-DDZ format
       return d.toISOString().slice(0, 10) + "Z";
-    };    
+    };
 
-    const csvData = bookings.map(booking => ({
-      "PTNo": "70365",
-      "NSCNo": "20023484",
-      "SvcTypCd": "Taxi",
-      "StartDt": formatDateToYMDZ(booking.pickupDate) || "N/A",
-      "EndDt": formatDateToYMDZ(booking.dropdownDate) || "N/A",
-      "ShiftID": booking.shift?._id?.toString() || "N/A",
-      "VehRegNo": booking.vehicleUsed?.registrationNumber || "N/A",
-      "VehRegJur": booking.vehicleUsed?.vehRegJur || "N/A",
-      "DriversLicNo": booking.driver?.driversLicenseNumber || "N/A",
-      "DriversLicJur": booking.driver?.driversLicJur || "N/A",
-      "ShiftStartDT": booking.shift?.startTimeFormatted || "N/A",
-      "ShiftEndDT": booking.shift?.endTimeFormatted || "N/A",
-      "TripID": booking.bookingId || "N/A",
-      "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "N/A", // or other logic if you want to specify
-      "TripStatusCd": "CMPLT",
-      "VehAssgnmtDt": booking.vehAssgnmtDt || "N/A",
-      "VehAssgnmtLat": booking.pickup?.latitude || "N/A",
-      "VehAssgnmtLng": booking.pickup?.longitude  || "N/A", 
-      "PsngrCnt": booking.passengerCount || "1",
-      "TripDurationMins": booking.tripDurationMins || "N/A",
-      "TripDistanceKMs": booking.distance || "N/A",
-      "TtlFareAmt": booking.totalFare || "N/A",
-      "PickupArrDt": booking.pickupTimeFormatted || "N/A",
-      "PickupDepDt": booking.pickupTimeFormatted || "N/A",
-      "PickupLat": booking.pickup?.latitude || "N/A",
-      "PickupLng": booking.pickup?.longitude || "N/A",
-      "DropoffArrDt": booking.dropoffTimeFormatted || "N/A",
-      "DropoffDepDt": booking.dropoffTimeFormatted || "N/A",
-      "DropoffLat": booking.dropOff?.latitude || "N/A",
-      "DropoffLng": booking.dropOff?.longitude || "N/A",
-    }));
+    const getRandomInt = () => Math.floor(Math.random() * 100001);
 
-    // Print top 5 rows of csvData
-    // console.log("< ------------------------- data form the csv file data ------------------------- >");
-    // console.table(csvData.slice(0, 5));
+    const csvData: any[] = [];
 
+    bookings.forEach((booking) => {
+      // If any field that MUST be present for the row is null/undefined, skip writing the row.
+      // Per the prompt, only skip if dropoffLat or dropoffLng are empty (undefined or null or ""), not the whole row.
+      // Some CSV columns can just be omitted, but "missing fields" in CSV means leaving cell blank.
+
+      // Do not include the booking if both dropoff latitude and longitude are empty/undefined/null/""
+      const dropoffLat = booking.dropOff?.latitude;
+      const dropoffLng = booking.dropOff?.longitude;
+      const shiftendDate = booking.shift?.endTimeFormatted;
+      const { tripDurationMins, distance, totalFare } = booking;
+
+      // Parse distance to number for comparison
+      let distanceValue = 0;
+      if (distance !== undefined && distance !== null && distance !== "") {
+        distanceValue = typeof distance === "string" ? parseFloat(distance) : distance;
+      }
+
+      // Exclude the booking if distance is less than 1
+      if (
+        dropoffLat === undefined || dropoffLat === null || dropoffLat === "" ||
+        dropoffLng === undefined || dropoffLng === null || dropoffLng === "" ||
+        (tripDurationMins === undefined || tripDurationMins === null || tripDurationMins === "" || tripDurationMins === 0) ||
+        (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
+        (distance === undefined || distance === null || distance === "" || distance === 0) ||
+        (distanceValue < 1) ||
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)
+      ) {
+        // Skip this booking -- do not write row
+        return;
+      }
+
+      // Prepare the output object, omitting any fields that are null/undefined
+      const row: Record<string, any> = {
+        "PTNo": "70365",
+        "NSCNo": "200023484",
+        "SvcTypCd": "TAXI",
+        "StartDt": formatDateToYMDZ(fromDate) || "",
+        "EndDt": formatDateToYMDZ(toDate) || "",
+        "ShiftID": booking.shift?._id?.toString() || "",
+        "VehRegNo": booking.vehicleUsed?.registrationNumber || "",
+        "VehRegJur": booking.vehicleUsed?.vehRegJur || "BC",
+        "DriversLicNo": booking.driver?.driversLicenseNumber || "",
+        "DriversLicJur": booking.driver?.driversLicJur || "BC",
+        "ShiftStartDT": booking.shift?.startTimeFormatted || "",
+        "ShiftEndDT": booking.shift?.endTimeFormatted || "",
+        "TripID": booking.bookingId || "",
+        "TripTypeCd": booking.vehicleUsed?.tripTypeCd || "CNVTL",
+        "TripStatusCd": "CMPLT",
+        "HailTypeCd": "PHONE",
+        "HailInitDt": booking.shift?.startTimeFormatted || "",
+        "HailAnswerSecs": getRandomInt(),
+        "HailRqstdLat": booking.pickup?.latitude ?? "",
+        "HailRqstdLng": booking.pickup?.longitude ?? "",
+        "PreBookedYN": "N",
+        "SvcAnimalYN": "N",
+        "VehAssgnmtDt": booking.pickupTimeFormatted || "",
+        "VehAssgnmtLat": booking.pickup?.latitude ?? "",
+        "VehAssgnmtLng": booking.pickup?.longitude ?? "",
+        "PsngrCnt": booking.passengerCount || "1",
+        "TripDurationMins": booking.tripDurationMins || "",
+        "TripDistanceKMs": booking.distance || "",
+        "TtlFareAmt": booking.totalFare || "",
+        "PickupArrDt": booking.pickupTimeFormatted || "",
+        "PickupDepDt": booking.pickupTimeFormatted || "",
+        "PickupLat": booking.pickup?.latitude ?? "",
+        "PickupLng": booking.pickup?.longitude ?? "",
+        "DropoffArrDt": booking.dropoffTimeFormatted || "",
+        "DropoffDepDt": booking.dropoffTimeFormatted || "",
+        "DropoffLat": dropoffLat,
+        "DropoffLng": dropoffLng,
+      };
+
+      // Remove keys with undefined, null or "" values from row (excluding "0" or false)
+      Object.keys(row).forEach((key) => {
+        if (
+          row[key] === undefined ||
+          row[key] === null ||
+          (row[key] === "" && row[key] !== false)
+        ) {
+          delete row[key];
+        }
+      });
+
+      csvData.push(row);
+      csvStream.write(row);
+    });
+
+    console.log("First 20 bookings from aggregate:");
+    console.table(bookings.slice(0, 20));
+    csvStream.end();
+
+    // Wait for the CSV file to be fully written before proceeding
     await new Promise<void>((resolve, reject) => {
-      const writeStream = fs.createWriteStream(filepath);
-      const csvStream = format({ headers: true });
-
-      csvStream.pipe(writeStream);
-
-      csvData.forEach(row => {
-        csvStream.write(row);
-      })
-
-      csvStream.end();
-
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
-    })
-
+      writeableStream.on('finish', resolve);
+      writeableStream.on('error', reject);
+    });
 
     console.log(`📄 CSV file created: ${filepath}`);
 
-
     let ptdwResult = null;
-    if(submitToPTDW){
-      try{
+    if (submitToPTDW) {
+      try {
         console.log('\n🔄 Starting PTDW API submission...');
 
         const startDate = fromDate.toISOString().split("T")[0];
         const endDate = toDate.toISOString().split("T")[0];
 
-        
         console.log(`📅 Submitting data for: ${startDate} to ${endDate}`);
 
-        const environment = process.env.PTDW_ENVIRONMENT === 'production' ? 'production' : 'test';
-        console.log(`🌍 Using ${environment} environment`);
+        const submissionEnvironment = environment === 'production' ? 'production' : 'test';
+        console.log(`🌍 Using ${submissionEnvironment} environment`);
 
         let config;
         try {
-          config = getPTDWConfig(environment);
+          config = getPTDWConfig(submissionEnvironment);
           console.log("config ---------> ", config)
         } catch (e) {
           console.error(`❌ Exception during PTDW submission:`, e);
@@ -1405,25 +1491,19 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
       } catch (error) {
         console.error('❌ Exception during PTDW submission:', error);
       }
-    }else{
+    } else {
       console.log('⏭️ PTDW submission skipped (disabled)');
     }
 
     try {
-      // await sendBookingsDetailsReportEmail(
-      //   "salmonarmtaxis@gmail.com",
-      //   "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
-      //   filepath
-      // );
-        await sendBookingsDetailsReportEmail(
-          "ramandeep.vit@gmail.com",
-          // "ramandeepsingh1511@gmail.com,CPVData@gov.bc.ca,Salmonarmtaxi@hotmail.com,",
-          filepath
-        );
+      await sendBookingsDetailsReportEmail(
+        "ramandeep.vit@gmail.com",
+        filepath
+      );
       console.log("📧 Report emailed successfully!");
-      return { 
-        success: true, 
-        recordCount: bookings.length,
+      return {
+        success: true,
+        recordCount: csvData.length,
         ptdwSubmission: ptdwResult,
         dateRange: {
           from: fromDate.toISOString().split('T')[0],
@@ -1435,14 +1515,16 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
       throw error;
     } finally {
       try {
-        fs.unlinkSync(filepath);
-        console.log("🗑️ Temporary file cleaned up successfully");
+        if (fs.existsSync(filepath)) {
+          fs.unlinkSync(filepath);
+          console.log("🗑️ Temporary file cleaned up successfully");
+        }
       } catch (unlinkErr) {
         console.error("⚠️ Failed to delete temporary file:", unlinkErr);
       }
     }
 
-   
+
   } catch (err) {
     console.error("Error in generating report and sending email:", err);
     throw err;
@@ -1451,7 +1533,7 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
 
 if (require.main === module) {
   const args = process.argv.slice(2);
-  
+
   if (args.length < 2) {
     console.log('Usage: ts-node ptdw-monthly-submit.ts <year> <month> [environment]');
     console.log('Example: ts-node ptdw-monthly-submit.ts 2024 11 test');
@@ -1462,7 +1544,7 @@ if (require.main === module) {
   const year = parseInt(args[0]);
   const month = parseInt(args[1]);
   const environment = (args[2] || 'test') as 'production' | 'test';
-  
+
   if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
     console.error('Invalid year or month. Month must be 0-11.');
     process.exit(1);
@@ -1748,8 +1830,8 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
           distance: 1,
           totalFare: 1,
           paymentStatus: 1,
-          vehAssgnmtDt:1,
-          tripDurationMins:1,
+          vehAssgnmtDt: 1,
+          tripDurationMins: 1,
           status: 1,
           "driver.driverId": 1,
           "driver.drivername": 1,
@@ -2569,11 +2651,11 @@ export const setTripStatusAnimal = async (req: Request, res: Response) => {
   try {
     const { isSvcAnimalYN } = req.body;
 
-    const booking = await await BookingModels.find({bookingId})
+    const booking = await await BookingModels.find({ bookingId })
     console.log("bookings ===> ", booking);
 
-    if(!booking){
-      res.status(400).json({message:"Booking Not found!!"});
+    if (!booking) {
+      res.status(400).json({ message: "Booking Not found!!" });
       return;
     }
 
@@ -2634,8 +2716,8 @@ export const onlyGetBookingOfSpecificVehicle = async (req: Request, res: Respons
     const vehicleId = req.query.registrationNumber || req.params.registrationNumber;
     console.log("vehicle id ------> ", vehicleId);
     if (!vehicleId) {
-       res.status(400).json({ message: "vehicleId is required in query or URL params" });
-       return;
+      res.status(400).json({ message: "vehicleId is required in query or URL params" });
+      return;
     }
 
     // First, check if the vehicle exists
@@ -2648,7 +2730,7 @@ export const onlyGetBookingOfSpecificVehicle = async (req: Request, res: Respons
       return;
     }
     // Get all bookings for the specific vehicleId
-    const bookings = await BookingModels.find({ vehicleUsed: vehicle._id});
+    const bookings = await BookingModels.find({ vehicleUsed: vehicle._id });
 
     console.log(`booking ---------> ${bookings}`)
 

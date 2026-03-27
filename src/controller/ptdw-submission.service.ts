@@ -39,7 +39,7 @@ export class PTDWSubmissionService {
             console.log('🔄 Converting CSV data to XML format...');
             const xmlData = this.convertCSVToXML(csvData, startDate, endDate);
 
-            // console.log("xml data -------------> ", xmlData)
+            console.log("xml data -------------> ", xmlData)
 
             // Encode the XML data as base64 as required by the Trip Data Submission Guide (v1.3).
             // Convert the XMLData string to UTF-8 bytes, then to base64 for the PTDW "XMLData" field
@@ -58,6 +58,8 @@ export class PTDWSubmissionService {
             console.log('🔐 Generating authentication token...');
             const jweToken = await this.generateJweToken();
 
+            const jwttoken = await this.genrateJwtToken();
+
             console.log("jwe token --------->", jweToken);
 
             console.log('🚀 Submitting to PTDW API...');
@@ -67,17 +69,28 @@ export class PTDWSubmissionService {
 
             return {
                 success: true,
-                statusCode: response.data['Status code'],
-                submissionId: response.data.Response.sid,
-                message: response.data.Reason
+                statusCode: response.data['Status code'] || response.status,
+                submissionId: response.data.Response?.sid || '',
+                message: response.data.Reason || 'Success'
             };
         } catch (error) {
-            console.log("Ptdw submission Failed: ", error);
+            console.error("PTDW submission failed:", error);
+
+            if (axios.isAxiosError(error)) {
+                const axiosError = error as AxiosError<any>;
+                return {
+                    success: false,
+                    statusCode: axiosError.response?.status || 500,
+                    message: axiosError.response?.data?.Reason || axiosError.message,
+                    error: axiosError.response?.data?.Response?.error || axiosError.message
+                };
+            }
+
             return {
                 success: false,
-                statusCode: 401,
-                message: "Invalid token",
-                error: "Unauthorized - Invalid token. Check your credentials and JWT/JWE generation."
+                statusCode: 500,
+                message: error instanceof Error ? error.message : "Unknown error",
+                error: error instanceof Error ? error.message : "Unknown error"
             };
         }
     }
@@ -102,18 +115,16 @@ export class PTDWSubmissionService {
 
             const tripsXML = trips.map(trip => this.generateTripXML(trip)).join('\n');
 
-            return `    <Shift>
-            <ShiftID>${this.escapeXML(shiftId)}</ShiftID>
-            <VehRegNo>${this.escapeXML(firstTrip.VehRegNo)}</VehRegNo>
-            <VehRegJur>${this.escapeXML(firstTrip.VehRegJur)}</VehRegJur>
-            <DriversLicNo>${this.escapeXML(firstTrip.DriversLicNo)}</DriversLicNo>
-            <DriversLicJur>${this.escapeXML(firstTrip.DriversLicJur)}</DriversLicJur>
-            <ShiftStartDT>${this.escapeXML(firstTrip.ShiftStartDT)}</ShiftStartDT>
-            <ShiftEndDT>${this.escapeXML(firstTrip.ShiftEndDT)}</ShiftEndDT>
-            <Trips>
-      ${tripsXML}
-            </Trips>
-          </Shift>`;
+            return `<Shift>
+                ShiftID>${this.escapeXML(shiftId)}</ShiftID>
+                VehRegNo>${this.escapeXML(firstTrip.VehRegNo)}</VehRegNo>
+                VehRegJur>${this.escapeXML(firstTrip.VehRegJur)}</VehRegJur>
+                DriversLicNo>${this.escapeXML(firstTrip.DriversLicNo)}</DriversLicNo>
+                DriversLicJur>${this.escapeXML(firstTrip.DriversLicJur)}</DriversLicJur>
+                ShiftStartDT>${this.escapeXML(firstTrip.ShiftStartDT)}</ShiftStartDT>
+                ShiftEndDT>${this.escapeXML(firstTrip.ShiftEndDT)}</ShiftEndDT>
+                <Trips>${tripsXML}</Trips>
+                </Shift>`;
         }).join('\n');
 
         const xmlData = `<?xml version="1.0" encoding="utf-8"?>
@@ -172,103 +183,62 @@ export class PTDWSubmissionService {
 
     private async generateJweToken(): Promise<string> {
 
-        const jwtToken = await this.genrateJwtToken();
+        try {
+            const jwtToken = await this.genrateJwtToken();
 
-        console.log("jwt Token -------> ", jwtToken)
-        
+            const publicKey = await importSPKI(
+                this.publickey.replace(/\\n/g, "\n"),
+                "RSA-OAEP"
+            );
 
-        const keyStore = jose.JWK.createKeyStore();
-      
-        const publicKey = await keyStore.add(
-            this.publickey.replace(/\\n/g, "\n"),
-            "pem"
-        );
+            // 3️⃣ Encrypt JWT into JWE
+            const jwe = await new CompactEncrypt(Buffer.from(jwtToken))
+            .setProtectedHeader({ alg: "RSA-OAEP", enc: "A256GCM" })
+            .encrypt(publicKey);
+            console.log("jwe -----------> ", jwe)
 
-        // const publicKey = this.publickey.replace(/\\n/g, "\n");
 
-        console.log("publickey -----------> ", publicKey);  
-
-        const jwe = await jose.JWE.createEncrypt(
-            {
-                format: "compact",
-                // Do not specify 'kid' field in 'fields' to avoid including kid in JWE header
-                fields: {
-                    alg: "RSA-OAEP",
-                    enc: "A256GCM"
-                }
-            },
-            publicKey
-        ).update(jwtToken).final(); 
-
-        // const encoder = new TextEncoder();
-
-        // const jwe = await new CompactEncrypt(encoder.encode(jwtToken)).setProtectedHeader({
-        //     alg:"RSA-OAEP",
-        //     enc:"A256GCM"
-        // }).encrypt(publicKey);
-
-        return jwe;
+            console.log("JWE Token (first 50 chars):", jwe.substring(0, 50) + "...");
+            console.log("jwe > ", jwe)
+            return jwe;
+        }
+        catch (error) {
+            console.error("Error generating JWE token:", error);
+            throw new Error(`JWE token generation failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
 
 
-    private async genrateJwtToken() : Promise<string>{
-        console.log("<------------------------------------ generateJweToken ------------------------------------> ")
-        // Format current date as 'YYYY-MM-DDTHH:mm:ss.SSSZ'
-        const now = new Date().toISOString();
-        console.log("now ===============> ", now)
 
-        const payload: JWTPayload = {
+    /**
+     * Generates a JWT signed with the shared key using the HS256 algorithm,
+     * and encodes the token in Base64.
+     */
+    private async genrateJwtToken(): Promise<string> {
+        console.log("<------------------------------------ generateJweToken ------------------------------------>");
+
+        const now = new Date().toISOString();
+        console.log("now ===============> ", now);
+
+        const payload = {
             iss: "SALMON ARM TAXI (1978) LTD.",
             sub: "TripData",
-            uuid: "7c2fd32d-a997-4347-8b69-4430e2932242",
-            ptnum: "70365",
+            uuid: this.uuid,
+            ptnum: this.ptNubmer,
             created: now,
-            osv: "00001"
+            osv: Math.random().toString(36).substring(2, 10),
         };
-       
-        const JWTPayload2 = JSON.stringify(payload);
+        console.log("payload --------> ", payload)
 
-        console.log("jwtpayload -----------> ", JWTPayload2)
+        const jwt = await new SignJWT(payload)
+        .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+        .sign(Buffer.from(this.sharedKey, "base64"));
 
-        console.log("shared key ----------------------> ", this.sharedKey);
+        console.log("jwt > ", jwt)
 
-        const secret = new TextEncoder().encode(this.sharedKey);
-
-        console.log("secret -------> ", secret)
-        // console.log("payload ================> ", payload)
-        // Sign JWT using HS256 algorithm
-        // To fix the type error, ensure payload has string keys.
-        const token = await new SignJWT({ JWTPayload2 })
-            .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-            .sign(secret);
-
-        const decoded = jwt.verify(token, this.sharedKey) as JwtPayload;
-        console.log("decoded ---------------> ", decoded);
-        return token;
+        // return Buffer.from(jwtToken).toString('base64');
+        return jwt;
     }
-    // private async genrateJwtToken(): Promise<string> {
-    //     const now = new Date().toISOString();
-
-    //     const payload = {
-    //         iss: this.organizationName,
-    //         sub: "TripData",
-    //         uuid: this.uuid,
-    //         ptnum: this.ptNubmer,
-    //         created: now,
-    //         osv: this.generateOSV()
-    //     };
-
-    //     console.log("payload --------> ", payload)
-
-    //     const signedJwt = jwt.sign(payload, this.sharedKey, {
-    //         algorithm: "HS256",
-    //         noTimestamp: true
-    //     });
-
-    //     console.log("signedJwt ---------------------> ", signedJwt)
-
-    //     return signedJwt as string;
-    // }
 
     private generateOSV(): string {
         const timestamp = Date.now().toString();
@@ -283,13 +253,17 @@ export class PTDWSubmissionService {
     ) {
         const requestBody: PTDWRequest = {
             PTNo: this.ptNubmer,
-            XMLData: base64XML,  
+            XMLData: base64XML,
             StartDate: startDate,
             EndDate: endDate
         };
-
-        console.log("api url -------------> ", this.apiurl)
-        console.log("request ----------> ", requestBody);
+        console.log("API URL:", this.apiurl);
+        console.log("Request body (XML truncated):", {
+            PTNo: requestBody.PTNo,
+            XMLData: base64XML.substring(0, 50) + "... (" + base64XML.length + " chars)",
+            StartDate: requestBody.StartDate,
+            EndDate: requestBody.EndDate
+        });
 
         // Generate curl command for debugging/logging
         const curlCommand = [
@@ -305,20 +279,32 @@ export class PTDWSubmissionService {
         console.log("CURL Command for request:");
         console.log(curlCommand);
 
-        const response = await axios.post<PTDWResponse>(
-            this.apiurl,
-            JSON.stringify(requestBody),
-            {
-                headers: {
-                    'Authorization': `Bearer ${jweToken}`,
-                    // 'Content-Type': 'application/json',
-                    // 'Accept': 'text/plain'
-                },
-                timeout: 600000
+        try {
+            const response = await axios.post<PTDWResponse>(
+                this.apiurl,
+                requestBody,  // axios will automatically stringify
+                {
+                    headers: {
+                        'Authorization': `Bearer ${jweToken}`,
+                        'Content-Type': 'application/json',
+                        'Accept': 'text/plain'
+                    },
+                    timeout: 60000,  // 60 second timeout
+                    validateStatus: (status) => status < 500  // Don't throw on 4xx errors
+                }
+            );
+            console.log("Response ----------> ", response)
+            console.log("Response Status:", response.status, response.statusText);
+            console.log("Response Data:", response.data);
+
+            return response;
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                console.error("API Error Response:", error.response?.data);
+                console.error("API Error Status:", error.response?.status);
             }
-        );
-        console.log(response.statusText);
-        return response;
+            throw error;
+        }
     }
 
     private validateDateFormat(date: string): void {
@@ -350,5 +336,6 @@ export class PTDWSubmissionService {
         //     throw new Error('Date range cannot span multiple calendar months');
         // }
     }
+
 }
 
