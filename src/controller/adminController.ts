@@ -1232,24 +1232,24 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
     console.log("toDate.toISOString() ---> ", toDate.toISOString());
 
     const bookings = await BookingModels.aggregate([
-      // {
-      //   $addFields: {
-      //     pickupDateObj: {
-      //       $dateFromString: {
-      //         dateString: "$pickupDate",
-      //         format: "%m/%d/%Y",
-      //       }
-      //     }
-      //   }
-      // },
-      // {
-      //   $match: {
-      //     pickupDateObj: {
-      //       $gte: fromDate,
-      //       $lte: toDate,
-      //     },
-      //   },
-      // },
+      {
+        $addFields: {
+          pickupDateObj: {
+            $dateFromString: {
+              dateString: "$pickupDate",
+              format: "%m/%d/%Y",
+            }
+          }
+        }
+      },
+      {
+        $match: {
+          pickupDateObj: {
+            $gte: fromDate,
+            $lte: toDate,
+          },
+        },
+      },
       {
         $lookup: {
           from: "drivers",
