@@ -68,7 +68,7 @@ export const registerVehicleSchema = z.object({
 
 export const registerSharedVehicleSchema = z.object({
     registrationNumber: z.string().
-        min(17, { message: "Registration Number is Required!" }),
+        min(6, { message: "Registration Number is Required!" }),
     company: z.string({
         required_error: "Company name is required",
     })
