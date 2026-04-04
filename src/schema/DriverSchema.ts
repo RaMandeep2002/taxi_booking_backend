@@ -90,7 +90,6 @@ export const registerSharedVehicleSchema = z.object({
         .min(3, { message: "License plate number must be at least 3 characters long" }),
 
     vehRegJur: z.string({ required_error: "Vehicle Registration Jurisdiction is required" }).min(2, { message: "Vehicle Registration Jurisdiction must be atleast 2 character long" }),
-    tripTypeCd: z.string({ required_error: "Trip Type Code is required" }).min(1, { message: "Trip Type Code must not be empty" })
 })
 
 export const updateVehicleSchema = z.object({
