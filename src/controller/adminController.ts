@@ -870,7 +870,7 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
     return;
   }
 
-  const { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } = validationResult.data;
+  const { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur } = validationResult.data;
 
   try {
     const vehicle = await Vehicle.findById(id);
@@ -881,7 +881,7 @@ export const updateVehicleInfomation = async (req: Request, res: Response) => {
 
     const updatedVehicle = await Vehicle.findByIdAndUpdate(
       id,
-      { $set: { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur, tripTypeCd } },
+      { $set: { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur } },
       { new: true }
     );
 
