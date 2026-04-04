@@ -11,7 +11,6 @@ export interface IVehicle extends Document {
   status: "active" | "free";
   currentDriver?: Types.ObjectId;
   vehAssgnmtDt?:string;
-  tripTypeCd ?: string; 
   isActive: boolean;
   isAssigned:boolean;
 }
@@ -53,9 +52,6 @@ const VehicleSchema: Schema = new Schema(
     },
     vehAssgnmtDt:{
       type:String
-    },
-    tripTypeCd:{
-      type:String,
     },
     isActive: {
       type: Boolean,
