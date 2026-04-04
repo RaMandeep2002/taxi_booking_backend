@@ -737,7 +737,7 @@ export const registerSharedVehicle = async (req: Request, res: Response) => {
     return;
   }
 
-  const { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJu } = validationResult.data;
+  const { registrationNumber, company, vehicleModel, year, vehicle_plate_number, vehRegJur } = validationResult.data;
 
   try {
     // const { registrationNumber } = generateRandomRegistrationNumber20();
