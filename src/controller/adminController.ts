@@ -1150,7 +1150,7 @@ export const gettingReport = async (req: Request, res: Response) => {
         "HailRqstdLng": booking.pickup?.longitude ?? "",
         "PreBookedYN": "N",
         "SvcAnimalYN": "N",
-        "VehAssgnmtDt": booking.pickupTimeFormatted || "",
+        "VehAssgnmtDt": booking.vehAssgnmtDt || "",
         "VehAssgnmtLat": booking.pickup?.latitude ?? "",
         "VehAssgnmtLng": booking.pickup?.longitude ?? "",
         "PsngrCnt": booking.passengerCount || "1",
