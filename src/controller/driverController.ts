@@ -723,6 +723,8 @@ export const start_Ride = async (req: Request, res: Response) => {
       tripDurationMins: null,
     };
 
+    console.log("bookingDoc ----> ", bookingDoc);
+
     const booking = new BookingModels(bookingDoc);
     await booking.save();
 
