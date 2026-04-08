@@ -957,8 +957,13 @@ export const end_Ride = async (req: Request, res: Response) => {
     // const time = new Date();
     const { original, final: totalFare } = await CalculateTaxiTotalFarePrice(FLAG_PRICE, DISTANCE_PRICE_PER_KM, WAITING_TIME_RATE_PER_MIN, distance, wating_time);
 
+    console.log("original ----> ", original);
+    console.log("totalFare ----> ", totalFare);
+    console.log("discount_price ----> ", discount_price);
+    
     const discounted_price_calaute = totalFare - discount_price;
-
+    console.log("discounted_price_calaute ----> ", discounted_price_calaute);
+    
     activeShift.totalEarnings += booking.totalFare; // Assuming fareAmount is the earnings for this trip
     activeShift.totalDistance += activeShift.distance; // Assuming distance is stored in the booking
 
