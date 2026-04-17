@@ -1112,6 +1112,18 @@ export const gettingReport = async (req: Request, res: Response) => {
         distanceValue = typeof distance === "string" ? parseFloat(distance) : distance;
       }
 
+      // Check if vehicle assignment date (VehAssgnmtDt) is within shift time
+      if (booking.pickupTimeFormatted && booking.shift?.startTime && booking.shift?.endTime) {
+        const assgnmtDate = new Date(booking.pickupTimeFormatted);
+        const shiftStart = new Date(booking.shift.startTime);
+        const shiftEnd = new Date(booking.shift.endTime);
+
+        if (assgnmtDate < shiftStart || assgnmtDate > shiftEnd) {
+          // Skip if assignment is outside shift time
+          return;
+        }
+      }
+
       // Exclude the booking if distance is less than 1
       if (
         dropoffLat === undefined || dropoffLat === null || dropoffLat === "" ||
@@ -1368,6 +1380,18 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
       let distanceValue = 0;
       if (distance !== undefined && distance !== null && distance !== "") {
         distanceValue = typeof distance === "string" ? parseFloat(distance) : distance;
+      }
+
+      // Check if vehicle assignment date (VehAssgnmtDt) is within shift time
+      if (booking.pickupTimeFormatted && booking.shift?.startTime && booking.shift?.endTime) {
+        const assgnmtDate = new Date(booking.pickupTimeFormatted);
+        const shiftStart = new Date(booking.shift.startTime);
+        const shiftEnd = new Date(booking.shift.endTime);
+
+        if (assgnmtDate < shiftStart || assgnmtDate > shiftEnd) {
+          // Skip if assignment is outside shift time
+          return;
+        }
       }
 
       // Exclude the booking if distance is less than 1
