@@ -1115,11 +1115,14 @@ export const gettingReport = async (req: Request, res: Response) => {
       // Check if vehicle assignment date (VehAssgnmtDt) is within shift time
       if (booking.pickupTimeFormatted) {
         const assgnmtDate = new Date(booking.pickupTimeFormatted);
+        console.log("assgnmtDate ---> ", assgnmtDate)
 
         // 2. Check Query Date Range (from/to)
         if (fromDateDecoded && toDateDecoded) {
           const fmDate = new Date(fromDateDecoded);
+          console.log("fmDate ---> ", fmDate)
           const tDate = new Date(toDateDecoded);
+          console.log("tDate ---> ", tDate)
           
           if (assgnmtDate < fmDate || assgnmtDate > tDate) {
             return; // Skip if assignment is outside query date range
