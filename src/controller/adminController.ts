@@ -1078,7 +1078,15 @@ export const gettingReport = async (req: Request, res: Response) => {
       return;
     }
 
-    const filepath = "bookings.csv";
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `bookings_${timestamp}.csv`;
+    const filepath = path.resolve(__dirname, "..", 'temp', filename);
+
+    const tempDir = path.dirname(filepath);
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
+
     const writeableStream = fs.createWriteStream(filepath);
     const csvStream = format({ headers: true });
 
@@ -1212,56 +1220,65 @@ export const gettingReport = async (req: Request, res: Response) => {
 
     csvStream.end();
     writeableStream.on("finish", async () => {
-      // 1. Automated submission using BCeIDAutomator
+      // 1. Create a copy of the file for background automation
+      const backgroundFile = `${filepath}.auto`;
       try {
-        console.log('🤖 Starting automated submission from gettingReport...');
-        const automator = new BCeIDAutomator();
+        fs.copyFileSync(filepath, backgroundFile);
         
-        // Ensure dates are in YYYY-MM-DD format
-        const start = fromDateDecoded ? new Date(fromDateDecoded).toISOString().split('T')[0] : '';
-        const end = toDateDecoded ? new Date(toDateDecoded).toISOString().split('T')[0] : '';
-        console.log("startDate ---> ", start);
-        console.log("endDate ---> ", end);
-        
-        const result = await automator.runFullFlow({
-          filePath: filepath,
-          startDate: start,
-          endDate: end
-        }, true); // Enabled headless mode for production
-        
-        if (result.success) {
-          console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
-          
-          // 2. Send email after confirmation
+        // 2. Start Background Automation (Non-blocking)
+        (async () => {
           try {
-            await sendBookingsDetailsReportEmail("ramandeep.vit@gmail.com", filepath);
-            console.log("📧 Confirmation email sent successfully!");
-          } catch (mailErr) {
-            console.error("❌ Email failed:", mailErr);
+            console.log('🤖 Starting background automated submission...');
+            const automator = new BCeIDAutomator();
+            const start = fromDateDecoded ? new Date(fromDateDecoded).toISOString().split('T')[0] : '';
+            const end = toDateDecoded ? new Date(toDateDecoded).toISOString().split('T')[0] : '';
+            
+            const result = await automator.runFullFlow({
+              filePath: backgroundFile,
+              startDate: start,
+              endDate: end
+            }, true);
+            
+            if (result.success) {
+              console.log(`✅ Background submission successful! ID: ${result.submissionId}`);
+              try {
+                await sendBookingsDetailsReportEmail("ramandeep.vit@gmail.com", backgroundFile);
+                console.log("📧 Background confirmation email sent!");
+              } catch (mailErr) {
+                console.error("❌ Background email failed:", mailErr);
+              }
+            } else {
+              console.error(`❌ Background automation failed: ${result.error}`);
+            }
+          } catch (autoErr) {
+            console.error('❌ Exception in background automation:', autoErr);
+          } finally {
+            // Cleanup the background copy
+            if (fs.existsSync(backgroundFile)) {
+              fs.unlinkSync(backgroundFile);
+            }
           }
-        } else {
-          console.error(`❌ Automated submission failed: ${result.error}`);
-        }
-      } catch (autoErr) {
-        console.error('❌ Exception during automated submission:', autoErr);
+        })();
+      } catch (copyErr) {
+        console.error("⚠️ Failed to create background file copy:", copyErr);
       }
 
-      // 3. Trigger manual download
+      // 3. Immediate manual download to prevent client timeout
+      console.log('🚀 Triggering manual download...');
       res.download(filepath, "bookings.csv", (err) => {
         if (err) {
-          console.error("Error sending file:", err);
+          console.error("Manual download error:", err);
           if (!res.headersSent) {
-            res.status(500).json({ message: "Error generating CSV file." });
+            res.status(500).json({ message: "Error downloading CSV file." });
           }
         }
-        // 4. Final Cleanup
+        // Cleanup original file
         try {
           if (fs.existsSync(filepath)) {
             fs.unlinkSync(filepath);
-            console.log("🗑️ Temporary file cleaned up successfully");
           }
         } catch (unlinkErr) {
-          console.error("⚠️ Failed to delete temporary file:", unlinkErr);
+          console.error("⚠️ Failed to delete original file:", unlinkErr);
         }
       });
     });
