@@ -10,7 +10,7 @@ cron.schedule("0 */12 * * *", () => {
 
 cron.schedule("0 0 1 * *", async () => {
     console.log("📅 Running monthly report cron job...");
-    await generateAndSendReport();
+    // await generateAndSendReport();
 });
 
 

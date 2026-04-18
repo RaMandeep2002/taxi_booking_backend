@@ -1216,8 +1216,10 @@ export const gettingReport = async (req: Request, res: Response) => {
       try {
         console.log('🤖 Starting automated submission from gettingReport...');
         // const automator = new BCeIDAutomator();
-        // const start = fromDateDecoded ? fromDateDecoded.split('T')[0] : '';
-        // const end = toDateDecoded ? toDateDecoded.split('T')[0] : '';
+        const start = fromDateDecoded ? fromDateDecoded.split('T')[0] : '';
+        const end = toDateDecoded ? toDateDecoded.split('T')[0] : '';
+        console.log("startDate ---> ", start)
+        console.log("endDate ---> ", end)
         
         // const result = await automator.runFullFlow({
         //   filePath: filepath,
