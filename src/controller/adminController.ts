@@ -1510,23 +1510,28 @@ export const generateAndSendReport = async () => {
     console.log(`📄 CSV file created: ${filepath}`);
 
     // Automated submission using BCeIDAutomator
-    // try {
-    //   console.log('🤖 Starting automated submission...');
-    //   const automator = new BCeIDAutomator();
-    //   const result = await automator.runFullFlow({
-    //     filePath: filepath,
-    //     startDate: fromDate.toISOString().split('T')[0],
-    //     endDate: toDate.toISOString().split('T')[0]
-    //   }, false); // Set to true for headless in production
+    try {
+      console.log('🤖 Starting automated submission...');
+      // const automator = new BCeIDAutomator();
+      // const result = await automator.runFullFlow({
+      //   filePath: filepath,
+      //   startDate: fromDate.toISOString().split('T')[0],
+      //   endDate: toDate.toISOString().split('T')[0]
+      // }, false); // Set to true for headless in production
 
-    //   if (result.success) {
-    //     console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
-    //   } else {
-    //     console.error(`❌ Automated submission failed: ${result.error}`);
-    //   }
-    // } catch (autoErr) {
-    //   console.error('❌ Exception during automated submission:', autoErr);
-    // }
+      const startDate = fromDate.toISOString().split('T')[0];
+      console.log("startDate ---> ", startDate)
+      const endDate = toDate.toISOString().split('T')[0]
+      console.log("endDate ---> ", endDate)
+
+      // if (result.success) {
+      //   console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
+      // } else {
+      //   console.error(`❌ Automated submission failed: ${result.error}`);
+      // }
+    } catch (autoErr) {
+      console.error('❌ Exception during automated submission:', autoErr);
+    }
 
 
     try {
