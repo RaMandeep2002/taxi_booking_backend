@@ -1211,14 +1211,54 @@ export const gettingReport = async (req: Request, res: Response) => {
     });
 
     csvStream.end();
+    writeableStream.on("finish", async () => {
+      // 1. Automated submission using BCeIDAutomator
+      try {
+        console.log('🤖 Starting automated submission from gettingReport...');
+        const automator = new BCeIDAutomator();
+        const start = fromDateDecoded ? fromDateDecoded.split('T')[0] : '';
+        const end = toDateDecoded ? toDateDecoded.split('T')[0] : '';
+        
+        const result = await automator.runFullFlow({
+          filePath: filepath,
+          startDate: start,
+          endDate: end
+        }, false); // Set to true for headless in production
+        
+        if (result.success) {
+          console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
+          
+          // 2. Send email after confirmation
+          try {
+            await sendBookingsDetailsReportEmail("ramandeep.vit@gmail.com", filepath);
+            console.log("📧 Confirmation email sent successfully!");
+          } catch (mailErr) {
+            console.error("❌ Email failed:", mailErr);
+          }
+        } else {
+          console.error(`❌ Automated submission failed: ${result.error}`);
+        }
+      } catch (autoErr) {
+        console.error('❌ Exception during automated submission:', autoErr);
+      }
 
-    writeableStream.on("finish", () => {
+      // 3. Trigger manual download
       res.download(filepath, "bookings.csv", (err) => {
         if (err) {
           console.error("Error sending file:", err);
-          res.status(500).json({ message: "Error generating CSV file." });
+          if (!res.headersSent) {
+            res.status(500).json({ message: "Error generating CSV file." });
+          }
         }
-        fs.unlinkSync(filepath);
+        // 4. Final Cleanup
+        try {
+          if (fs.existsSync(filepath)) {
+            fs.unlinkSync(filepath);
+            console.log("🗑️ Temporary file cleaned up successfully");
+          }
+        } catch (unlinkErr) {
+          console.error("⚠️ Failed to delete temporary file:", unlinkErr);
+        }
       });
     });
 
@@ -1512,23 +1552,23 @@ export const generateAndSendReport = async () => {
     // Automated submission using BCeIDAutomator
     try {
       console.log('🤖 Starting automated submission...');
-      // const automator = new BCeIDAutomator();
-      // const result = await automator.runFullFlow({
-      //   filePath: filepath,
-      //   startDate: fromDate.toISOString().split('T')[0],
-      //   endDate: toDate.toISOString().split('T')[0]
-      // }, false); // Set to true for headless in production
+      const automator = new BCeIDAutomator();
+      const result = await automator.runFullFlow({
+        filePath: filepath,
+        startDate: fromDate.toISOString().split('T')[0],
+        endDate: toDate.toISOString().split('T')[0]
+      }, false); // Set to true for headless in production
+
+      if (result.success) {
+        console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
+      } else {
+        console.error(`❌ Automated submission failed: ${result.error}`);
+      }
 
       const startDate = fromDate.toISOString().split('T')[0];
+      const endDate = toDate.toISOString().split('T')[0];
       console.log("startDate ---> ", startDate)
-      const endDate = toDate.toISOString().split('T')[0]
       console.log("endDate ---> ", endDate)
-
-      // if (result.success) {
-      //   console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
-      // } else {
-      //   console.error(`❌ Automated submission failed: ${result.error}`);
-      // }
     } catch (autoErr) {
       console.error('❌ Exception during automated submission:', autoErr);
     }
