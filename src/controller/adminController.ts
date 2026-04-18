@@ -1223,7 +1223,7 @@ export const gettingReport = async (req: Request, res: Response) => {
           filePath: filepath,
           startDate: start,
           endDate: end
-        }, false); // Set to true for headless in production
+        }, true); // Set to true for headless in production
         
         if (result.success) {
           console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
