@@ -1216,16 +1216,18 @@ export const gettingReport = async (req: Request, res: Response) => {
       try {
         console.log('🤖 Starting automated submission from gettingReport...');
         // const automator = new BCeIDAutomator();
-        const start = fromDateDecoded ? fromDateDecoded.split('T')[0] : '';
-        const end = toDateDecoded ? toDateDecoded.split('T')[0] : '';
-        console.log("startDate ---> ", start)
-        console.log("endDate ---> ", end)
+        
+        // Ensure dates are in YYYY-MM-DD format
+        const start = fromDateDecoded ? new Date(fromDateDecoded).toISOString().split('T')[0] : '';
+        const end = toDateDecoded ? new Date(toDateDecoded).toISOString().split('T')[0] : '';
+        console.log("startDate ---> ", start);
+        console.log("endDate ---> ", end);
         
         // const result = await automator.runFullFlow({
         //   filePath: filepath,
         //   startDate: start,
         //   endDate: end
-        // }, true); // Set to true for headless in production
+        // }, true); // Enabled headless mode for production
         
         // if (result.success) {
         //   console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
@@ -1559,7 +1561,7 @@ export const generateAndSendReport = async () => {
         filePath: filepath,
         startDate: fromDate.toISOString().split('T')[0],
         endDate: toDate.toISOString().split('T')[0]
-      }, false); // Set to true for headless in production
+      }, true); // Enabled headless mode for production
 
       if (result.success) {
         console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
