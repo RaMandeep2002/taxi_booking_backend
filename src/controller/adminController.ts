@@ -26,6 +26,7 @@ import { record } from "zod";
 import { formatZodErrors } from "../utils/FormatZodError";
 import { getPTDWConfig } from "../config/ptdw.config";
 import { PTDWSubmissionService } from "./ptdw-submission.service";
+import { BCeIDAutomator } from "./auto-submission.service";
 
 const adminWhatsAppNumber = process.env.ADMIN_WHATSAPP_NUMBER!;
 
@@ -1129,10 +1130,10 @@ export const gettingReport = async (req: Request, res: Response) => {
         if (fromDateDecoded && toDateDecoded) {
           const fmDate = new Date(fromDateDecoded);
           const tDate = new Date(toDateDecoded);
-          
+
           // Use UTC hours to prevent timezone offsets from pushing the range into the next UTC day
           tDate.setUTCHours(23, 59, 59, 999);
-          
+
           if (assgnmtDate < fmDate || assgnmtDate > tDate) {
             return; // Skip if assignment is outside query date range
           }
@@ -1228,7 +1229,7 @@ export const gettingReport = async (req: Request, res: Response) => {
 };
 
 
-export const generateAndSendReport = async (environment: 'production' | 'test' = 'test', submitToPTDW: boolean = true) => {
+export const generateAndSendReport = async () => {
   try {
     const today = new Date();
     console.log("Today ==> ", today);
@@ -1351,7 +1352,7 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
       },
     ]);
 
-    console.table(bookings);
+    // console.table(bookings);
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     console.log("timestamps ---> ", timestamp)
@@ -1397,15 +1398,32 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
         distanceValue = typeof distance === "string" ? parseFloat(distance) : distance;
       }
 
-      // Check if vehicle assignment date (VehAssgnmtDt) is within shift time
-      if (booking.pickupTimeFormatted && booking.shift?.startTime && booking.shift?.endTime) {
+      // Check if vehicle assignment date (VehAssgnmtDt) is within shift time and query range
+      if (booking.pickupTimeFormatted) {
         const assgnmtDate = new Date(booking.pickupTimeFormatted);
-        const shiftStart = new Date(booking.shift.startTime);
-        const shiftEnd = new Date(booking.shift.endTime);
 
-        if (assgnmtDate < shiftStart || assgnmtDate > shiftEnd) {
-          // Skip if assignment is outside shift time
-          return;
+        // 1. Check Shift Range
+        if (booking.shift?.startTime && booking.shift?.endTime) {
+          const shiftStart = new Date(booking.shift.startTime);
+          const shiftEnd = new Date(booking.shift.endTime);
+          if (assgnmtDate < shiftStart || assgnmtDate > shiftEnd) {
+            return; // Skip if assignment is outside shift time
+          }
+        }
+
+        // 2. Check Query Date Range (from/to)
+        if (fromDate && toDate) {
+          const fmDate = new Date(fromDate);
+          // console.log("fmdate ----> ", fmDate)
+          const tDate = new Date(toDate);
+          // console.log("tdate ----> ", tDate)
+
+          // Use UTC hours to prevent timezone offsets from pushing the range into the next UTC day
+          tDate.setUTCHours(23, 59, 59, 999);
+
+          if (assgnmtDate < fmDate || assgnmtDate > tDate) {
+            return; // Skip if assignment is outside query date range
+          }
         }
       }
 
@@ -1479,8 +1497,8 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
       csvStream.write(row);
     });
 
-    console.log("First 20 bookings from aggregate:");
-    console.table(bookings.slice(0, 20));
+    // console.log("First 20 bookings from aggregate:");
+    // console.table(bookings.slice(0, 20));
     csvStream.end();
 
     // Wait for the CSV file to be fully written before proceeding
@@ -1491,47 +1509,25 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
 
     console.log(`📄 CSV file created: ${filepath}`);
 
-    let ptdwResult = null;
-    if (submitToPTDW) {
-      try {
-        console.log('\n🔄 Starting PTDW API submission...');
+    // Automated submission using BCeIDAutomator
+    // try {
+    //   console.log('🤖 Starting automated submission...');
+    //   const automator = new BCeIDAutomator();
+    //   const result = await automator.runFullFlow({
+    //     filePath: filepath,
+    //     startDate: fromDate.toISOString().split('T')[0],
+    //     endDate: toDate.toISOString().split('T')[0]
+    //   }, false); // Set to true for headless in production
 
-        const startDate = fromDate.toISOString().split("T")[0];
-        const endDate = toDate.toISOString().split("T")[0];
+    //   if (result.success) {
+    //     console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
+    //   } else {
+    //     console.error(`❌ Automated submission failed: ${result.error}`);
+    //   }
+    // } catch (autoErr) {
+    //   console.error('❌ Exception during automated submission:', autoErr);
+    // }
 
-        console.log(`📅 Submitting data for: ${startDate} to ${endDate}`);
-
-        const submissionEnvironment = environment === 'production' ? 'production' : 'test';
-        console.log(`🌍 Using ${submissionEnvironment} environment`);
-
-        let config;
-        try {
-          config = getPTDWConfig(submissionEnvironment);
-          console.log("config ---------> ", config)
-        } catch (e) {
-          console.error(`❌ Exception during PTDW submission:`, e);
-          throw e;
-        }
-        const ptdwService = new PTDWSubmissionService(config, 'SALMON ARM TAXI (1978) LTD.');
-
-        ptdwResult = await ptdwService.submitCSVData(csvData, startDate, endDate);
-
-        console.log("ptdwResult ------> ", ptdwResult)
-
-        if (ptdwResult && ptdwResult.success === true) {
-          console.log(`✅ PTDW Submission successful!`);
-          console.log(`   Submission ID: ${ptdwResult.submissionId}`);
-          console.log(`   Status: ${ptdwResult.message}`);
-        }
-        else {
-          console.error('❌ PTDW submission failed: Unknown error or no error message returned.');
-        }
-      } catch (error) {
-        console.error('❌ Exception during PTDW submission:', error);
-      }
-    } else {
-      console.log('⏭️ PTDW submission skipped (disabled)');
-    }
 
     try {
       await sendBookingsDetailsReportEmail(
@@ -1542,7 +1538,6 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
       return {
         success: true,
         recordCount: csvData.length,
-        ptdwSubmission: ptdwResult,
         dateRange: {
           from: fromDate.toISOString().split('T')[0],
           to: toDate.toISOString().split('T')[0]
@@ -1569,35 +1564,35 @@ export const generateAndSendReport = async (environment: 'production' | 'test' =
   }
 };
 
-if (require.main === module) {
-  const args = process.argv.slice(2);
+// if (require.main === module) {
+//   const args = process.argv.slice(2);
 
-  if (args.length < 2) {
-    console.log('Usage: ts-node ptdw-monthly-submit.ts <year> <month> [environment]');
-    console.log('Example: ts-node ptdw-monthly-submit.ts 2024 11 test');
-    console.log('Note: Month is 0-based (0=Jan, 11=Dec)');
-    process.exit(1);
-  }
+//   if (args.length < 2) {
+//     console.log('Usage: ts-node ptdw-monthly-submit.ts <year> <month> [environment]');
+//     console.log('Example: ts-node ptdw-monthly-submit.ts 2024 11 test');
+//     console.log('Note: Month is 0-based (0=Jan, 11=Dec)');
+//     process.exit(1);
+//   }
 
-  const year = parseInt(args[0]);
-  const month = parseInt(args[1]);
-  const environment = (args[2] || 'test') as 'production' | 'test';
+//   const year = parseInt(args[0]);
+//   const month = parseInt(args[1]);
+//   const environment = (args[2] || 'test') as 'production' | 'test';
 
-  if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
-    console.error('Invalid year or month. Month must be 0-11.');
-    process.exit(1);
-  }
+//   if (isNaN(year) || isNaN(month) || month < 0 || month > 11) {
+//     console.error('Invalid year or month. Month must be 0-11.');
+//     process.exit(1);
+//   }
 
-  generateAndSendReport(environment)
-    .then(result => {
-      console.log('\n📋 Final Result:', result);
-      process.exit(result.success ? 0 : 1);
-    })
-    .catch(error => {
-      console.error('Fatal error:', error);
-      process.exit(1);
-    });
-}
+//   generateAndSendReport(environment)
+//     .then(result => {
+//       console.log('\n📋 Final Result:', result);
+//       process.exit(result.success ? 0 : 1);
+//     })
+//     .catch(error => {
+//       console.error('Fatal error:', error);
+//       process.exit(1);
+//     });
+// }
 
 
 export const generateAndSendReport12 = async () => {
@@ -1791,7 +1786,7 @@ export const generateAndSendReport12 = async () => {
 
 export const gettingReportAndSendEmail = async (req: Request, res: Response) => {
   try {
-    const result = await generateAndSendReport("test", true);
+    const result = await generateAndSendReport();
     // const result = await generateAndSendReport("production", true);
     // const result = await generateAndSendReport12();
 

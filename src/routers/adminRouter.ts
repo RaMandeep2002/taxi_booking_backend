@@ -144,8 +144,12 @@ router.get("/getbooking", authenticate, authorize(["admin"]), getAllBookingRider
 router.get("/getDriverListWithVehicle", authenticate, authorize(["admin"]), getDriverListWithVehicle);
 router.get("/getDriverWithVehicleexculudeDriver", authenticate, authorize(["admin"]), getDriverWithVehicleexculudeDriver);
 // router.get("/report-csv",authenticate, authorize(["admin"]), gettingReport);
+
+
 router.get("/report-csv", gettingReport);
 router.get("/monthly-report-csv", gettingReportAndSendEmail);
+
+
 router.get("/bookings", authenticate, authorize(["admin"]),getBookingdeteails);
 router.get("/bookingsone", authenticate, authorize(["admin"]),getBookingdeteailsone);
 router.get("/bookingsall",getBookingdetailss);
