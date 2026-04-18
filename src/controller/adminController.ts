@@ -1220,8 +1220,8 @@ export const gettingReport = async (req: Request, res: Response) => {
 
     csvStream.end();
     writeableStream.on("finish", async () => {
-      // 1. Create a copy of the file for background automation
-      const backgroundFile = `${filepath}.auto`;
+      // 1. Create a copy of the file for background automation (must keep .csv extension)
+      const backgroundFile = filepath.replace(/\.csv$/, '_auto.csv');
       try {
         fs.copyFileSync(filepath, backgroundFile);
         
