@@ -1215,18 +1215,18 @@ export const gettingReport = async (req: Request, res: Response) => {
       // 1. Automated submission using BCeIDAutomator
       try {
         console.log('🤖 Starting automated submission from gettingReport...');
-        const automator = new BCeIDAutomator();
-        const start = fromDateDecoded ? fromDateDecoded.split('T')[0] : '';
-        const end = toDateDecoded ? toDateDecoded.split('T')[0] : '';
+        // const automator = new BCeIDAutomator();
+        // const start = fromDateDecoded ? fromDateDecoded.split('T')[0] : '';
+        // const end = toDateDecoded ? toDateDecoded.split('T')[0] : '';
         
-        const result = await automator.runFullFlow({
-          filePath: filepath,
-          startDate: start,
-          endDate: end
-        }, true); // Set to true for headless in production
+        // const result = await automator.runFullFlow({
+        //   filePath: filepath,
+        //   startDate: start,
+        //   endDate: end
+        // }, true); // Set to true for headless in production
         
-        if (result.success) {
-          console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
+        // if (result.success) {
+        //   console.log(`✅ Automated submission successful! Submission ID: ${result.submissionId}`);
           
           // 2. Send email after confirmation
           try {
@@ -1235,9 +1235,9 @@ export const gettingReport = async (req: Request, res: Response) => {
           } catch (mailErr) {
             console.error("❌ Email failed:", mailErr);
           }
-        } else {
-          console.error(`❌ Automated submission failed: ${result.error}`);
-        }
+        // } else {
+        //   console.error(`❌ Automated submission failed: ${result.error}`);
+        // }
       } catch (autoErr) {
         console.error('❌ Exception during automated submission:', autoErr);
       }
