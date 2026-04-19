@@ -2051,6 +2051,7 @@ export const getBookingdeteailsone = async (req: Request, res: Response) => {
                 totalFare: 1,
                 paymentStatus: 1,
                 status: 1,
+                isPTDW: 1,
                 "driver.drivername": 1,
                 "vehicle.company": 1,
                 "vehicle.vehicleModel": 1,
