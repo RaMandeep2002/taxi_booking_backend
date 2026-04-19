@@ -173,7 +173,7 @@ const BookingSchema: Schema = new Schema({
   },
   isPTDW: {
     type: Boolean,
-    default: true
+    default: false
   }
 }, { timestamps: true });
 
