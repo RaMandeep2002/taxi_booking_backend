@@ -1048,7 +1048,6 @@ export const gettingReport = async (req: Request, res: Response) => {
           tripDurationMins: 1,
           status: 1,
           isPTDW: 1,
-
           "driver.driverId": 1,
           "driver.drivername": 1,
           "driver.email": 1,
@@ -1161,7 +1160,7 @@ export const gettingReport = async (req: Request, res: Response) => {
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
         (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0) ||
-        (booking.isPTDW === false)
+        (booking.isPTDW === true)
       ) {
 
         // Skip this booking -- do not write row
