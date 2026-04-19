@@ -4,7 +4,7 @@ import { generateAndSendReport } from "../controller/adminController";
 
 
 cron.schedule("0 */12 * * *", () => {
-    // console.log(`🕙 Running DB backup...`);
+    console.log(`🕙 Running DB backup...`);
     runDatabaseBackup();
 });
 

@@ -40,6 +40,7 @@ export interface IBooking extends Document {
   paymentStatus: "pending" | "paid";
   paymentMethod: "cash" | "card" | "online";
   status: "pending" | "accepted" | "ongoing" | "completed" | "cancelled";
+  isPTDW: boolean;
   // bookingStatus: "pending" | "confirmed" | "cancelled";
 }
 
@@ -170,6 +171,10 @@ const BookingSchema: Schema = new Schema({
     enum: ["pending", "accepted", "ongoing", "completed", "cancelled"],
     default: "pending",
   },
+  isPTDW: {
+    type: Boolean,
+    default: true
+  }
 }, { timestamps: true });
 
 export default mongoose.model<IBooking>("Booking", BookingSchema);

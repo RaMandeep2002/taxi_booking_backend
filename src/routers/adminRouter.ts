@@ -38,6 +38,7 @@ import {
   getBookingdetailss,
   setTripStatusAnimal,
   onlyGetBookingOfSpecificVehicle,
+  isIncludeinSubmission,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -167,5 +168,8 @@ router.get("/shiftsHistory", getAllShifts12)
 router.get("/getallshiftwithdriverandvehicle", getDriverWithAssignedVehicle)
 router.put("/setTripStatusAnimalandTriptype/:bookingId", authenticate, authorize(["admin"]), setTripStatusAnimal);
 router.get("/onlyGetBookingOfSpecificVehicle/:registrationNumber", authenticate, authorize(["admin"]), onlyGetBookingOfSpecificVehicle);
+
+
+router.put("/isIncludeinSubmission/:bookingId", authenticate, authorize(["admin"]), isIncludeinSubmission);
 
 export default router;

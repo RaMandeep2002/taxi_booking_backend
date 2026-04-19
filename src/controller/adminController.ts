@@ -2858,3 +2858,67 @@ export const onlyGetBookingOfSpecificVehicle = async (req: Request, res: Respons
     });
   }
 }
+
+
+export const isIncludeinSubmission = async (req: Request, res: Response) => {
+  try {
+    const { bookingId } = req.params;
+    const { isPTDW } = req.body;
+
+    const booking = await BookingModels.findOne({ bookingId });
+    console.log("booking ===> ", booking);
+
+    if (!booking) {
+      res.status(404).json({ message: "Booking not found" });
+      return;
+    }
+
+    if (!bookingId) {
+      console.log("bookingId not provided");
+      res.status(400).json({ message: "bookingId is required" });
+      return;
+    }
+
+    // Prepare update object
+    const updateObj: any = {};
+    if (typeof isPTDW !== "undefined") {
+      updateObj.isPTDW = Boolean(isPTDW);
+      console.log("Setting isPTDW to:", updateObj.isPTDW);
+    }
+    // if (typeof tripTypeCd !== "undefined") updateObj.tripTypeCd = tripTypeCd;
+
+    if (Object.keys(updateObj).length === 0) {
+      console.log("No valid fields to update");
+      res.status(400).json({ message: "No valid fields to update" });
+      return;
+    }
+
+    console.log("update Obj -------> ", updateObj);
+    // 'booking' is an array; need the _id from the first (and should check if found earlier)
+    const updated = await BookingModels.findOneAndUpdate(
+      { bookingId: bookingId },
+      { $set: updateObj },
+      { new: true }
+    );
+
+    console.log("Mongo update result:", updated);
+
+    if (!updated) {
+      console.log("Booking not found for id:", bookingId);
+      res.status(404).json({ message: "Booking not found" });
+      return;
+    }
+
+    res.status(200).json({
+      message: "Booking Status updated successfully",
+      booking: updated,
+    });
+    console.log("Booking status updated successfully");
+  } catch (err) {
+    console.error("Error while updating booking:", err);
+    res.status(500).json({
+      message: "Something went wrong while updating the booking",
+      error: err instanceof Error ? err.message : err,
+    });
+  }
+}
