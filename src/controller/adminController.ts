@@ -2855,6 +2855,7 @@ export const isIncludeinSubmission = async (req: Request, res: Response) => {
   try {
     const { bookingId } = req.params;
     const { isPTDW } = req.body;
+    console.log("isPTDW  =====> ", isPTDW)
 
     const booking = await BookingModels.findOne({ bookingId });
     console.log("booking ===> ", booking);
