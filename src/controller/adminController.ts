@@ -976,7 +976,9 @@ export const gettingReport = async (req: Request, res: Response) => {
     console.log("fromDateDecoded -----> ", fromDateDecoded)
     console.log("toDateDecoded -----> ", toDateDecoded)
 
-    const matchStage: any = {};
+    const matchStage: any = {
+      isPTDW: true
+    };
     if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
         $gte: fromDateDecoded,
@@ -1045,6 +1047,8 @@ export const gettingReport = async (req: Request, res: Response) => {
           vehAssgnmtDt: 1,
           tripDurationMins: 1,
           status: 1,
+          isPTDW: 1,
+
           "driver.driverId": 1,
           "driver.drivername": 1,
           "driver.email": 1,
@@ -1156,8 +1160,10 @@ export const gettingReport = async (req: Request, res: Response) => {
         (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
-        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0) ||
+        (booking.isPTDW === false)
       ) {
+
         // Skip this booking -- do not write row
         return;
       }
@@ -1220,50 +1226,30 @@ export const gettingReport = async (req: Request, res: Response) => {
 
     csvStream.end();
     writeableStream.on("finish", async () => {
-      // 1. Create a copy of the file for background automation (must keep .csv extension)
+      // 1. Create a copy of the file for the email/background process
       const backgroundFile = filepath.replace(/\.csv$/, '_auto.csv');
+      
       try {
         fs.copyFileSync(filepath, backgroundFile);
-        
-        // 2. Start Background Automation (Non-blocking)
-        (async () => {
-          try {
-            console.log('🤖 Starting background automated submission...');
-            const automator = new BCeIDAutomator();
-            const start = fromDateDecoded ? new Date(fromDateDecoded).toISOString().split('T')[0] : '';
-            const end = toDateDecoded ? new Date(toDateDecoded).toISOString().split('T')[0] : '';
-            
-            const result = await automator.runFullFlow({
-              filePath: backgroundFile,
-              startDate: start,
-              endDate: end
-            }, true);
-            
-            if (result.success) {
-              console.log(`✅ Background submission successful! ID: ${result.submissionId}`);
-              try {
-                await sendBookingsDetailsReportEmail("ramandeep.vit@gmail.com", backgroundFile);
-                console.log("📧 Background confirmation email sent!");
-              } catch (mailErr) {
-                console.error("❌ Background email failed:", mailErr);
-              }
-            } else {
-              console.error(`❌ Background automation failed: ${result.error}`);
-            }
-          } catch (autoErr) {
-            console.error('❌ Exception in background automation:', autoErr);
-          } finally {
-            // Cleanup the background copy
-            if (fs.existsSync(backgroundFile)) {
-              fs.unlinkSync(backgroundFile);
-            }
-          }
-        })();
+
+        // 2. Send the report via email
+        try {
+          await sendBookingsDetailsReportEmail("ramandeep.vit@gmail.com", backgroundFile);
+          console.log("📧 Background confirmation email sent!");
+        } catch (mailErr) {
+          console.error("❌ Background email failed:", mailErr);
+        }
+
       } catch (copyErr) {
         console.error("⚠️ Failed to create background file copy:", copyErr);
+      } finally {
+        // Cleanup the background copy if it exists
+        if (fs.existsSync(backgroundFile)) {
+          fs.unlinkSync(backgroundFile);
+        }
       }
 
-      // 3. Immediate manual download to prevent client timeout
+      // 3. Trigger manual download to the client
       console.log('🚀 Triggering manual download...');
       res.download(filepath, "bookings.csv", (err) => {
         if (err) {
@@ -1272,7 +1258,7 @@ export const gettingReport = async (req: Request, res: Response) => {
             res.status(500).json({ message: "Error downloading CSV file." });
           }
         }
-        // Cleanup original file
+        // Cleanup original file after download
         try {
           if (fs.existsSync(filepath)) {
             fs.unlinkSync(filepath);
@@ -1332,6 +1318,7 @@ export const generateAndSendReport = async () => {
       },
       {
         $match: {
+          isPTDW: true,
           pickupDateObj: {
             $gte: fromDate,
             $lte: toDate,
@@ -1388,6 +1375,8 @@ export const generateAndSendReport = async () => {
           vehAssgnmtDt: 1,
           tripDurationMins: 1,
           status: 1,
+          isPTDW: 1,
+
           "driver.driverId": 1,
           "driver.drivername": 1,
           "driver.email": 1,
@@ -1496,8 +1485,10 @@ export const generateAndSendReport = async () => {
         (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
-        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0) ||
+        (booking.isPTDW === false)
       ) {
+
         // Skip this booking -- do not write row
         return;
       }
