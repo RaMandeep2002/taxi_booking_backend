@@ -1159,7 +1159,7 @@ export const gettingReport = async (req: Request, res: Response) => {
         (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
-        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)  || 
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)  
         // (booking.isPTDW === true)
       ) {
 
