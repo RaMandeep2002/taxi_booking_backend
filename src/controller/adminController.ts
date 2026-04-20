@@ -979,6 +979,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     const matchStage: any = {
       isPTDW: true
     };
+    console.log("matchstage ----> ", matchStage)
     if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
         $gte: fromDateDecoded,
@@ -1073,8 +1074,8 @@ export const gettingReport = async (req: Request, res: Response) => {
       },
     ]);
 
-    console.log("First 20 bookings from aggregate:");
-    console.table(bookings.slice(0, 20));
+    // console.log("First 20 bookings from aggregate:");
+    // console.table(bookings.slice(0, 20));
 
     if (!bookings.length) {
       res.status(404).json({ message: "No bookings found" });
@@ -1208,6 +1209,8 @@ export const gettingReport = async (req: Request, res: Response) => {
         "DropoffLng": dropoffLng,
       };
 
+      console.log("row ----> ", row)
+
       // Remove keys with undefined, null or "" values from row (excluding "0" or false)
       // Remove keys whose value is undefined, null, or an empty string (expects: do not remove if value is 0 or false)
       Object.keys(row).forEach((key) => {
@@ -1223,6 +1226,8 @@ export const gettingReport = async (req: Request, res: Response) => {
       csvStream.write(row);
     });
 
+
+    
     csvStream.end();
     writeableStream.on("finish", async () => {
       // 1. Create a copy of the file for the email/background process
