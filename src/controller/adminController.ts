@@ -1074,7 +1074,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     ]);
 
     console.log("First 20 bookings from aggregate:");
-    console.table(bookings.slice(0, 5));
+    console.table(bookings);
 
     if (!bookings.length) {
       res.status(404).json({ message: "No bookings found" });
@@ -1159,7 +1159,7 @@ export const gettingReport = async (req: Request, res: Response) => {
         (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
-        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)  
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)
         // (booking.isPTDW === true)
       ) {
 
@@ -1230,7 +1230,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     writeableStream.on("finish", async () => {
       // 1. Create a copy of the file for the email/background process
       const backgroundFile = filepath.replace(/\.csv$/, '_auto.csv');
-      
+
       try {
         fs.copyFileSync(filepath, backgroundFile);
 
@@ -1487,7 +1487,7 @@ export const generateAndSendReport = async () => {
         (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
-        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0) 
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)
         // (booking.isPTDW === true)
       ) {
 
