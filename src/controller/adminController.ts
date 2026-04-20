@@ -976,7 +976,9 @@ export const gettingReport = async (req: Request, res: Response) => {
     console.log("fromDateDecoded -----> ", fromDateDecoded)
     console.log("toDateDecoded -----> ", toDateDecoded)
 
-    const matchStage: any = {};
+    const matchStage: any = {
+      isPTDW: { $ne: true }
+    };
     if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
         $gte: fromDateDecoded,
@@ -1157,8 +1159,8 @@ export const gettingReport = async (req: Request, res: Response) => {
         (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
-        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0) 
-        // (booking.isPTDW === true)
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)  || 
+        (booking.isPTDW === true)
       ) {
 
         // Skip this booking -- do not write row
