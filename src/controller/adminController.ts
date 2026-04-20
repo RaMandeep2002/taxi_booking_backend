@@ -977,7 +977,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     console.log("toDateDecoded -----> ", toDateDecoded)
 
     const matchStage: any = {
-      isPTDW: true
+      isPTDW: false
     };
     console.log("matchstage ----> ", matchStage)
     if (fromDateDecoded && toDateDecoded) {
@@ -1227,7 +1227,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     });
 
 
-    
+
     csvStream.end();
     writeableStream.on("finish", async () => {
       // 1. Create a copy of the file for the email/background process
