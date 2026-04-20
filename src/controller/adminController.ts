@@ -977,7 +977,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     console.log("toDateDecoded -----> ", toDateDecoded)
 
     const matchStage: any = {
-      isPTDW: false
+      isPTDW: true
     };
     if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
