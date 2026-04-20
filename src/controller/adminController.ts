@@ -1073,8 +1073,8 @@ export const gettingReport = async (req: Request, res: Response) => {
       },
     ]);
 
-    // console.log("First 20 bookings from aggregate:");
-    // console.table(bookings.slice(0, 20));
+    console.log("First 20 bookings from aggregate:");
+    console.table(bookings.slice(0, 5));
 
     if (!bookings.length) {
       res.status(404).json({ message: "No bookings found" });
