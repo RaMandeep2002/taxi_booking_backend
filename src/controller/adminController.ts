@@ -976,9 +976,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     console.log("fromDateDecoded -----> ", fromDateDecoded)
     console.log("toDateDecoded -----> ", toDateDecoded)
 
-    const matchStage: any = {
-      isPTDW: false
-    };
+    const matchStage: any = {};
     if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
         $gte: fromDateDecoded,
@@ -1319,7 +1317,7 @@ export const generateAndSendReport = async () => {
       },
       {
         $match: {
-          isPTDW: false,
+          // isPTDW: false,
           pickupDateObj: {
             $gte: fromDate,
             $lte: toDate,
