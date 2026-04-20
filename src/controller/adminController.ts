@@ -1207,7 +1207,7 @@ export const gettingReport = async (req: Request, res: Response) => {
         "DropoffDepDt": booking.dropoffTimeFormatted || "",
         "DropoffLat": dropoffLat,
         "DropoffLng": dropoffLng,
-        "isPTDW": booking.isPTDW ? "Y" : "N",
+        // "isPTDW": booking.isPTDW ? "Y" : "N",
       };
 
       // Remove keys with undefined, null or "" values from row (excluding "0" or false)
