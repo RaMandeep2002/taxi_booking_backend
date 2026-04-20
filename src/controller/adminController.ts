@@ -977,7 +977,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     console.log("toDateDecoded -----> ", toDateDecoded)
 
     const matchStage: any = {
-      isPTDW: { $ne: true }
+      // isPTDW: { $ne: true }
     };
     if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
@@ -1069,6 +1069,7 @@ export const gettingReport = async (req: Request, res: Response) => {
           "shift.endTime": 1,
           "shift.endDate": 1,
           "shift.endTimeFormatted": 1,
+
         },
       },
     ]);
@@ -1206,7 +1207,7 @@ export const gettingReport = async (req: Request, res: Response) => {
         "DropoffDepDt": booking.dropoffTimeFormatted || "",
         "DropoffLat": dropoffLat,
         "DropoffLng": dropoffLng,
-        "isPTDW": booking.isPTDW || "",
+        "isPTDW": booking.isPTDW ? "Y" : "N",
       };
 
       // Remove keys with undefined, null or "" values from row (excluding "0" or false)
