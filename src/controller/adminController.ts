@@ -1284,19 +1284,14 @@ export const generateAndSendReport = async () => {
     const today = new Date();
     console.log("Today ==> ", today);
 
-    const month = today.getMonth();
-    console.info("month -----> ", month)
+    // Calculate the range for the previous week (last 7 days)
+    const toDate = new Date(today);
+    toDate.setHours(0, 0, 0, 0); // End range: start of today
 
-    // Calculate previous month (if today is July, previous month is June)
-    const year = today.getMonth() === 0 ? today.getFullYear() - 1 : today.getFullYear();
-    const prevMonth = today.getMonth() === 0 ? 11 : today.getMonth() - 1;
+    const fromDate = new Date(toDate);
+    fromDate.setDate(toDate.getDate() - 7); // Start range: 7 days ago
 
-    // First day of the previous month
-    const fromDate = new Date(year, prevMonth, 1);
-
-    // Last day of the previous month
-    const toDate = new Date(year, prevMonth + 1, 0);
-
+    console.log("Weekly Report Range:");
     console.log("From date ===> ", fromDate);
     console.log("To date ===> ", toDate);
 

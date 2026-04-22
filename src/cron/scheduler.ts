@@ -8,9 +8,9 @@ cron.schedule("0 */12 * * *", () => {
     runDatabaseBackup();
 });
 
-cron.schedule("0 0 1 * *", async () => {
-    console.log("📅 Running monthly report cron job...");
-    // await generateAndSendReport();
+cron.schedule("0 0 * * 1", async () => {
+    console.log("📅 Running weekly report cron job...");
+    await generateAndSendReport();
 });
 
 
