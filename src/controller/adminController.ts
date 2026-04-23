@@ -1284,24 +1284,36 @@ export const generateAndSendReport = async () => {
     const today = new Date();
     console.log("Today ==> ", today);
 
-    // Calculate the range for the previous week (last 7 days)
+    // Calculate the range for the previous week (last 7 days, ending yesterday)
     const toDate = new Date(today);
-    toDate.setHours(0, 0, 0, 0); // End range: start of today
+    toDate.setDate(today.getDate() - 1); // Yesterday
+    toDate.setHours(0, 0, 0, 0);
 
     const fromDate = new Date(toDate);
-    fromDate.setDate(toDate.getDate() - 7); // Start range: 7 days ago
+    fromDate.setDate(toDate.getDate() - 6); // 7 days ago (including yesterday)
+    fromDate.setHours(0, 0, 0, 0);
 
-    console.log("Weekly Report Range:");
-    console.log("From date ===> ", fromDate);
-    console.log("To date ===> ", toDate);
+    // Helper to get YYYY-MM-DD in local time
+    const toLocalISOString = (date: Date) => {
+      const offset = date.getTimezoneOffset();
+      const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+      return localDate.toISOString().split('T')[0];
+    };
+
+    const startDateStr = toLocalISOString(fromDate);
+    const endDateStr = toLocalISOString(toDate);
+
+    console.log("Weekly Report Range (Safe):");
+    console.log("From date ===> ", fromDate, `(${startDateStr})`);
+    console.log("To date ===> ", toDate, `(${endDateStr})`);
 
     const PDT = 'America/Vancouver';
 
     console.log('fromDate in IST:', formatInTimeZone(fromDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
     console.log('toDate in IST:', formatInTimeZone(toDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
 
-    console.log("fromDate.toISOString() ---> ", fromDate.toISOString());
-    console.log("toDate.toISOString() ---> ", toDate.toISOString());
+    console.log("startDateStr ---> ", startDateStr);
+    console.log("endDateStr ---> ", endDateStr);
 
     const bookings = await BookingModels.aggregate([
       {
@@ -1565,8 +1577,8 @@ export const generateAndSendReport = async () => {
       const automator = new BCeIDAutomator();
       const result = await automator.runFullFlow({
         filePath: filepath,
-        startDate: fromDate.toISOString().split('T')[0],
-        endDate: toDate.toISOString().split('T')[0]
+        startDate: startDateStr,
+        endDate: endDateStr
       }, true); // Enabled headless mode for production
 
       if (result.success) {
@@ -1575,8 +1587,8 @@ export const generateAndSendReport = async () => {
         console.error(`❌ Automated submission failed: ${result.error}`);
       }
 
-      const startDate = fromDate.toISOString().split('T')[0];
-      const endDate = toDate.toISOString().split('T')[0];
+      const startDate = startDateStr;
+      const endDate = endDateStr;
       console.log("startDate ---> ", startDate)
       console.log("endDate ---> ", endDate)
     } catch (autoErr) {
@@ -1594,8 +1606,8 @@ export const generateAndSendReport = async () => {
         success: true,
         recordCount: csvData.length,
         dateRange: {
-          from: fromDate.toISOString().split('T')[0],
-          to: toDate.toISOString().split('T')[0]
+          from: startDateStr,
+          to: endDateStr
         }
       };
     } catch (error) {
