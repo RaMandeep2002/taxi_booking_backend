@@ -2125,6 +2125,25 @@ export const getBookingdeteailsone = async (req: Request, res: Response) => {
       return;
     }
 
+      bookings.sort((a: any, b: any) => {
+      // Combine pickupDate and pickuptime for full datetime comparison
+      const getDateTime = (booking: any) => {
+        // If pickuptime is present, combine with pickupDate
+        if (booking.pickupDate && booking.pickuptime) {
+          // Try to parse as ISO if possible, else fallback
+          const dateStr = `${booking.pickupDate} ${booking.pickuptime}`;
+          const dateTime = new Date(dateStr);
+          if (!isNaN(dateTime.getTime())) return dateTime;
+        }
+        // Fallback: just use pickupDate
+        return new Date(booking.pickupDate);
+      };
+      const dateA = getDateTime(a);
+      const dateB = getDateTime(b);
+      return dateB.getTime() - dateA.getTime();
+    });
+
+
     if (!bookings || bookings.length === 0) {
       res.status(404).json({
         message: "No bookings found!",
