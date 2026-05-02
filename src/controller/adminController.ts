@@ -963,12 +963,14 @@ export const gettingReport = async (req: Request, res: Response) => {
     const pickup = req.query.pickup as string;
     const drivername = req.query.drivername as string;
     const company = req.query.company as string;
+    const includePTDW = req.query.includePTDW === 'true'; // New parameter to optionally include PTDW
 
     console.log("rawFromDate -----> ", rawFromDate)
     console.log("rawToDate -----> ", rawToDate)
     console.log("pickup -----> ", pickup)
     console.log("drivername -----> ", drivername)
     console.log("company -----> ", company)
+    console.log("includePTDW -----> ", includePTDW)
 
     const fromDateDecoded = rawFromDate ? decodeURIComponent(rawFromDate) : undefined;
     const toDateDecoded = rawToDate ? decodeURIComponent(rawToDate) : undefined;
@@ -976,9 +978,13 @@ export const gettingReport = async (req: Request, res: Response) => {
     console.log("fromDateDecoded -----> ", fromDateDecoded)
     console.log("toDateDecoded -----> ", toDateDecoded)
 
-    const matchStage: any = {
-      isPTDW: { $ne: true }
-    };
+    const matchStage: any = {};
+    
+    // Only filter out PTDW if explicitly requested
+    if (!includePTDW) {
+      matchStage.isPTDW = { $ne: true };
+    }
+    
     if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
         $gte: fromDateDecoded,
@@ -1018,7 +1024,7 @@ export const gettingReport = async (req: Request, res: Response) => {
       },
       {
         $lookup: {
-          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
+          from: "shifts",
           localField: "shift",
           foreignField: "_id",
           as: "shift",
@@ -1069,7 +1075,6 @@ export const gettingReport = async (req: Request, res: Response) => {
           "shift.endTime": 1,
           "shift.endDate": 1,
           "shift.endTimeFormatted": 1,
-
         },
       },
     ]);
@@ -1101,7 +1106,6 @@ export const gettingReport = async (req: Request, res: Response) => {
       if (!date) return "N/A";
       const d = new Date(date);
       if (isNaN(d.getTime())) return "N/A";
-      // Create YYYY-MM-DDZ format
       return d.toISOString().slice(0, 10) + "Z";
     };
 
@@ -1109,11 +1113,6 @@ export const gettingReport = async (req: Request, res: Response) => {
     const getRandomInt = () => Math.floor(Math.random() * 100001);
 
     bookings.forEach((booking) => {
-      // If any field that MUST be present for the row is null/undefined, skip writing the row.
-      // Per the prompt, only skip if dropoffLat or dropoffLng are empty (undefined or null or ""), not the whole row.
-      // Some CSV columns can just be omitted, but "missing fields" in CSV means leaving cell blank.
-
-      // Do not include the booking if both dropoff latitude and longitude are empty/undefined/null/""
       const dropoffLat = booking.dropOff?.latitude;
       const dropoffLng = booking.dropOff?.longitude;
       const shiftendDate = booking.shift?.endTimeFormatted;
@@ -1142,8 +1141,6 @@ export const gettingReport = async (req: Request, res: Response) => {
         if (fromDateDecoded && toDateDecoded) {
           const fmDate = new Date(fromDateDecoded);
           const tDate = new Date(toDateDecoded);
-
-          // Use UTC hours to prevent timezone offsets from pushing the range into the next UTC day
           tDate.setUTCHours(23, 59, 59, 999);
 
           if (assgnmtDate < fmDate || assgnmtDate > tDate) {
@@ -1152,23 +1149,30 @@ export const gettingReport = async (req: Request, res: Response) => {
         }
       }
 
-      // Exclude the booking if distance is less than 1
-      if (
-        dropoffLat === undefined || dropoffLat === null || dropoffLat === "" ||
-        dropoffLng === undefined || dropoffLng === null || dropoffLng === "" ||
-        (tripDurationMins === undefined || tripDurationMins === null || tripDurationMins === "" || tripDurationMins === 0) ||
-        (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
-        (distance === undefined || distance === null || distance === "" || distance === 0) ||
-        (distanceValue < 1) ||
-        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0) ||
-        (booking.isPTDW == true)
-      ) {
-
-        // Skip this booking -- do not write row
-        return;
+      // Only apply data validation for non-PTDW bookings if you want to exclude incomplete PTDW bookings
+      // Or modify these conditions based on your business rules
+      const isPTDWBooking = booking.isPTDW === true;
+      
+      // For PTDW bookings, you might have different validation rules
+      // Here's an example - adjust according to your needs
+      if (!isPTDWBooking) {
+        // Exclude non-PTDW bookings if they don't meet data quality standards
+        if (
+          dropoffLat === undefined || dropoffLat === null || dropoffLat === "" ||
+          dropoffLng === undefined || dropoffLng === null || dropoffLng === "" ||
+          (tripDurationMins === undefined || tripDurationMins === null || tripDurationMins === "" || tripDurationMins === 0) ||
+          (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
+          (distance === undefined || distance === null || distance === "" || distance === 0) ||
+          (distanceValue < 1) ||
+          (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)
+        ) {
+          return; // Skip non-PTDW incomplete bookings
+        }
       }
+      // For PTDW bookings, you might want to include them even if data is incomplete
+      // Remove or modify the return condition above if PTDW should always be included
 
-      // Prepare the output object, omitting any fields that are null/undefined
+      // Prepare the output object
       const row: Record<string, any> = {
         "PTNo": "70365",
         "NSCNo": "200023484",
@@ -1207,11 +1211,10 @@ export const gettingReport = async (req: Request, res: Response) => {
         "DropoffDepDt": booking.dropoffTimeFormatted || "",
         "DropoffLat": dropoffLat,
         "DropoffLng": dropoffLng,
-        "isPTDW": booking.isPTDW === true ? "Y" : "N",
+        "isPTDW": isPTDWBooking ? "Y" : "N", // Show Y for PTDW, N for non-PTDW
       };
 
       // Remove keys with undefined, null or "" values from row (excluding "0" or false)
-      // Remove keys whose value is undefined, null, or an empty string (expects: do not remove if value is 0 or false)
       Object.keys(row).forEach((key) => {
         if (
           row[key] === undefined ||
@@ -1225,17 +1228,13 @@ export const gettingReport = async (req: Request, res: Response) => {
       csvStream.write(row);
     });
 
-
-
     csvStream.end();
     writeableStream.on("finish", async () => {
-      // 1. Create a copy of the file for the email/background process
       const backgroundFile = filepath.replace(/\.csv$/, '_auto.csv');
 
       try {
         fs.copyFileSync(filepath, backgroundFile);
 
-        // 2. Send the report via email
         try {
           await sendBookingsDetailsReportEmail("ramandeep.vit@gmail.com", backgroundFile);
           console.log("📧 Background confirmation email sent!");
@@ -1246,13 +1245,11 @@ export const gettingReport = async (req: Request, res: Response) => {
       } catch (copyErr) {
         console.error("⚠️ Failed to create background file copy:", copyErr);
       } finally {
-        // Cleanup the background copy if it exists
         if (fs.existsSync(backgroundFile)) {
           fs.unlinkSync(backgroundFile);
         }
       }
 
-      // 3. Trigger manual download to the client
       console.log('🚀 Triggering manual download...');
       res.download(filepath, "bookings.csv", (err) => {
         if (err) {
@@ -1261,7 +1258,6 @@ export const gettingReport = async (req: Request, res: Response) => {
             res.status(500).json({ message: "Error downloading CSV file." });
           }
         }
-        // Cleanup original file after download
         try {
           if (fs.existsSync(filepath)) {
             fs.unlinkSync(filepath);
@@ -1277,7 +1273,6 @@ export const gettingReport = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Internal server error" });
   }
 };
-
 
 export const generateAndSendReport = async () => {
   try {
