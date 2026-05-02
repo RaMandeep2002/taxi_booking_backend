@@ -2913,6 +2913,9 @@ export const onlyGetBookingOfSpecificVehicle = async (req: Request, res: Respons
 
 export const isIncludeinSubmission = async (req: Request, res: Response) => {
   try {
+    console.log("isIncludeinSubmission called");
+    console.log("Request params:", req.params);
+    console.log("Request body:", req.body);
     const { bookingId } = req.params;
     const { isPTDW } = req.body;
     console.log("isPTDW  =====> ", isPTDW)
