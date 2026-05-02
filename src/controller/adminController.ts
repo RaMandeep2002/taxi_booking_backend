@@ -977,7 +977,7 @@ export const gettingReport = async (req: Request, res: Response) => {
     console.log("toDateDecoded -----> ", toDateDecoded)
 
     const matchStage: any = {
-      // isPTDW: { $ne: true }
+      isPTDW: { $ne: true }
     };
     if (fromDateDecoded && toDateDecoded) {
       matchStage.pickupDate = {
@@ -1160,8 +1160,8 @@ export const gettingReport = async (req: Request, res: Response) => {
         (shiftendDate === undefined || shiftendDate === null || shiftendDate === "" || shiftendDate === 0) ||
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
-        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0)
-        // (booking.isPTDW === true)
+        (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0) ||
+        (booking.isPTDW === true)
       ) {
 
         // Skip this booking -- do not write row
@@ -1282,35 +1282,58 @@ export const gettingReport = async (req: Request, res: Response) => {
 export const generateAndSendReport = async () => {
   try {
     const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth();
+    const year = today.getFullYear();
+
     console.log("Today ==> ", today);
 
-    // Calculate the range for the previous week (last 7 days, ending yesterday)
-    const toDate = new Date(today);
-    toDate.setDate(today.getDate() - 1); // Yesterday
-    toDate.setHours(0, 0, 0, 0);
+    let fromDate: Date;
+    let toDate: Date;
 
-    const fromDate = new Date(toDate);
-    fromDate.setDate(toDate.getDate() - 6); // 7 days ago (including yesterday)
-    fromDate.setHours(0, 0, 0, 0);
+    if (day === 8) {
+      // Period: 1st to 7th of current month
+      fromDate = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+      toDate = new Date(Date.UTC(year, month, 7, 23, 59, 59, 999));
+    } else if (day === 15) {
+      // Period: 8th to 14th of current month
+      fromDate = new Date(Date.UTC(year, month, 8, 0, 0, 0, 0));
+      toDate = new Date(Date.UTC(year, month, 14, 23, 59, 59, 999));
+    } else if (day === 22) {
+      // Period: 15th to 21st of current month
+      fromDate = new Date(Date.UTC(year, month, 15, 0, 0, 0, 0));
+      toDate = new Date(Date.UTC(year, month, 21, 23, 59, 59, 999));
+    } else if (day === 1) {
+      // Period: 22nd of previous month to last day of previous month
+      const lastDayOfPrevMonth = new Date(Date.UTC(year, month, 0));
+      
+      fromDate = new Date(Date.UTC(lastDayOfPrevMonth.getUTCFullYear(), lastDayOfPrevMonth.getUTCMonth(), 22, 0, 0, 0, 0));
+      toDate = new Date(Date.UTC(lastDayOfPrevMonth.getUTCFullYear(), lastDayOfPrevMonth.getUTCMonth(), lastDayOfPrevMonth.getUTCDate(), 23, 59, 59, 999));
+    } else {
+      // Fallback: Default to last 7 days ending yesterday
+      const yesterday = new Date(today);
+      yesterday.setDate(today.getDate() - 1);
+      
+      toDate = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59, 999));
+      fromDate = new Date(Date.UTC(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate() - 6, 0, 0, 0, 0));
+    }
 
-    // Helper to get YYYY-MM-DD in local time
+    // Helper to get YYYY-MM-DD from UTC date
     const toLocalISOString = (date: Date) => {
-      const offset = date.getTimezoneOffset();
-      const localDate = new Date(date.getTime() - (offset * 60 * 1000));
-      return localDate.toISOString().split('T')[0];
+      return date.toISOString().split('T')[0];
     };
 
     const startDateStr = toLocalISOString(fromDate);
     const endDateStr = toLocalISOString(toDate);
 
-    console.log("Weekly Report Range (Safe):");
+    console.log("Scheduled Report Range:");
     console.log("From date ===> ", fromDate, `(${startDateStr})`);
     console.log("To date ===> ", toDate, `(${endDateStr})`);
 
     const PDT = 'America/Vancouver';
 
-    console.log('fromDate in IST:', formatInTimeZone(fromDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
-    console.log('toDate in IST:', formatInTimeZone(toDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
+    console.log('fromDate in PDT:', formatInTimeZone(fromDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
+    console.log('toDate in PDT:', formatInTimeZone(toDate, PDT, 'yyyy-MM-dd HH:mm:ssXXX'));
 
     console.log("startDateStr ---> ", startDateStr);
     console.log("endDateStr ---> ", endDateStr);
@@ -1602,6 +1625,13 @@ export const generateAndSendReport = async () => {
         filepath
       );
       console.log("📧 Report emailed successfully!");
+      
+      // Exit process as requested by user after successful submission and email
+      setTimeout(() => {
+        console.log("👋 Exiting process successfully...");
+        process.exit(0);
+      }, 2000);
+
       return {
         success: true,
         recordCount: csvData.length,
@@ -2918,10 +2948,119 @@ export const isIncludeinSubmission = async (req: Request, res: Response) => {
     });
     console.log("Booking status updated successfully");
   } catch (err) {
-    console.error("Error while updating booking:", err);
     res.status(500).json({
       message: "Something went wrong while updating the booking",
       error: err instanceof Error ? err.message : err,
     });
   }
-}
+};
+
+export const stopShiftwhichactivemorethan12hours = async (req?: Request, res?: Response) => {
+  try {
+    // 1. Find all active shifts
+    const activeShifts = await Shift.find({ isActive: true });
+    const now = new Date();
+    const stoppedShifts = [];
+
+    for (const activeShift of activeShifts) {
+      // 2. Calculate duration
+      let startTime: Date | null = null;
+      
+      if (activeShift.startTimeFormatted) {
+        startTime = new Date(activeShift.startTimeFormatted);
+      } else if (activeShift.startDate && activeShift.startTime) {
+        try {
+          startTime = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
+        } catch (e) {
+          console.error(`Error parsing date for shift ${activeShift._id}:`, e);
+          continue;
+        }
+      }
+
+      if (!startTime || isNaN(startTime.getTime())) continue;
+
+      const durationMs = now.getTime() - startTime.getTime();
+      const minutesActive = durationMs / (1000 * 60);
+
+      // 3. If more than 5 minutes (adjusted for testing, was 12 hours)
+      if (minutesActive >= 5) {
+        // 4. Check for active bookings for this driver
+        // Statuses that count as "active": ongoing, accepted, pending
+        const activeBooking = await BookingModels.findOne({
+          driver: activeShift.driverId,
+          status: { $in: ["ongoing", "accepted", "pending"] }
+        });
+
+        if (!activeBooking) {
+          // 5. Stop the shift
+          const h = Math.floor(durationMs / (1000 * 60 * 60));
+          const m = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+          const s = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+          activeShift.endTime = now.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'America/Vancouver',
+          });
+          activeShift.endDate = now.toLocaleDateString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric',
+            timeZone: 'America/Vancouver',
+          });
+          activeShift.endTimeFormatted = now.toISOString();
+          activeShift.endMonth = now.toLocaleString('default', { month: 'long' });
+          activeShift.isActive = false;
+          activeShift.isStopedByAdmin = true;
+          activeShift.totalDuration = `${h}h ${m}m ${s}s`;
+
+          // Unassign vehicle
+          const vehicle = await Vehicle.findById(activeShift.vehicleUsed);
+          if (vehicle) {
+            vehicle.isAssigned = false;
+            await vehicle.save();
+          }
+
+          // Update driver status
+          const driver = await Driver.findById(activeShift.driverId);
+          if (driver) {
+            driver.isOnline = false;
+            driver.status = "not working";
+            await driver.save();
+          }
+
+          await activeShift.save();
+          
+          stoppedShifts.push({
+            shiftId: activeShift._id,
+            driverId: activeShift.driverId,
+            duration: activeShift.totalDuration
+          });
+        }
+      }
+    }
+
+    if (res) {
+      res.status(200).json({
+        success: true,
+        message: stoppedShifts.length > 0 
+          ? `Successfully stopped ${stoppedShifts.length} shifts that were active for more than 5 minutes.` 
+          : "No active shifts found that exceed 5 minutes without active bookings.",
+        stoppedShifts
+      });
+    } else {
+      console.log(`[CRON] ${stoppedShifts.length} shifts were automatically stopped.`);
+    }
+
+  } catch (error) {
+    console.error("Error in stopShiftwhichactivemorethan12hours:", error);
+    if (res) {
+      res.status(500).json({ 
+        success: false, 
+        message: "An error occurred while trying to stop shifts.", 
+        error: error instanceof Error ? error.message : error 
+      });
+    }
+  }
+};
