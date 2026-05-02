@@ -1161,7 +1161,7 @@ export const gettingReport = async (req: Request, res: Response) => {
         (distance === undefined || distance === null || distance === "" || distance === 0) ||
         (distanceValue < 1) ||
         (totalFare === undefined || totalFare === null || totalFare === "" || totalFare === 0) ||
-        (booking.isPTDW === true)
+        (booking.isPTDW == true)
       ) {
 
         // Skip this booking -- do not write row
