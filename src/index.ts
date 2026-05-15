@@ -51,6 +51,18 @@ app.get("/", (req: Request, res: Response) => {
 }
 );
 
+app.get("/health-check", (req: Request, res: Response) => {
+  try {
+    res.status(200).json({
+      success: true,
+      message: "Server is running",
+    });
+  } catch (error) {
+    // next(error);
+    console.log("error ==> ", error);
+  }
+});
+
 app.use("/customer", bookigRouter);
 app.use("/api/auth", authRouter);
 app.use("/admin", adminRouter);

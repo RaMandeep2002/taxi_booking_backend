@@ -1616,8 +1616,9 @@ export const generateAndSendReport = async () => {
 
     try {
       await sendBookingsDetailsReportEmail(
-        "ramandeep.vit@gmail.com",
-        filepath
+        "salmonarmtaxis@gmail.com",
+        filepath,
+        ["salmonarmtaxis@gmail.com", "ramandeep.vit@gmail.com"]
       );
       console.log("📧 Report emailed successfully!");
       
@@ -2976,6 +2977,7 @@ export const stopShiftwhichactivemorethan12hours = async (req?: Request, res?: R
   try {
     // 1. Find all active shifts
     const activeShifts = await Shift.find({ isActive: true });
+    console.log("activeShifts ------> ", activeShifts);
     const now = new Date();
     const stoppedShifts = [];
 
@@ -2985,30 +2987,47 @@ export const stopShiftwhichactivemorethan12hours = async (req?: Request, res?: R
       
       if (activeShift.startTimeFormatted) {
         startTime = new Date(activeShift.startTimeFormatted);
-      } else if (activeShift.startDate && activeShift.startTime) {
-        try {
-          startTime = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
-        } catch (e) {
-          console.error(`Error parsing date for shift ${activeShift._id}:`, e);
-          continue;
+      }
+      
+      // If startTimeFormatted is missing or invalid, try startDate/startTime
+      if (!startTime || isNaN(startTime.getTime())) {
+        if (activeShift.startDate && activeShift.startTime) {
+          try {
+            // Try different common formats
+            startTime = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
+            if (isNaN(startTime.getTime())) {
+              startTime = parse(`${activeShift.startDate} ${activeShift.startTime}`, "M/d/yyyy h:mm a", new Date());
+            }
+          } catch (e) {
+            console.error(`Error parsing date for shift ${activeShift._id}:`, e);
+          }
         }
       }
 
-      if (!startTime || isNaN(startTime.getTime())) continue;
+      if (!startTime || isNaN(startTime.getTime())) {
+        console.warn(`[WARN] Skipping shift ${activeShift._id} due to invalid start time.`);
+        continue;
+      }
 
       const durationMs = now.getTime() - startTime.getTime();
       const minutesActive = durationMs / (1000 * 60);
 
       // 3. If more than 5 minutes (adjusted for testing, was 12 hours)
       if (minutesActive >= 5) {
-        // 4. Check for active bookings for this driver
-        // Statuses that count as "active": ongoing, accepted, pending
+        console.log(`[DEBUG] Checking shift ${activeShift._id} for driver ${activeShift.driverId}. Minutes active: ${minutesActive.toFixed(2)}`);
+        
+        // Use shift ID for more accurate booking check
         const activeBooking = await BookingModels.findOne({
-          driver: activeShift.driverId,
+          shift: activeShift._id,
           status: { $in: ["ongoing", "accepted", "pending"] }
         });
 
+        if (activeBooking) {
+          console.log(`[DEBUG] Shift ${activeShift._id} NOT stopped because active booking found: ${activeBooking._id} (status: ${activeBooking.status})`);
+        }
+
         if (!activeBooking) {
+          console.log(`[DEBUG] No active booking found for shift ${activeShift._id}. Stopping shift...`);
           // 5. Stop the shift
           const h = Math.floor(durationMs / (1000 * 60 * 60));
           const m = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));

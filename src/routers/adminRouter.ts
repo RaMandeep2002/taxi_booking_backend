@@ -39,6 +39,7 @@ import {
   setTripStatusAnimal,
   onlyGetBookingOfSpecificVehicle,
   isIncludeinSubmission,
+  stopShiftwhichactivemorethan12hours,
 } from "../controller/adminController";
 import { getAllBookingRider } from "../controller/BookingRide";
 
@@ -171,5 +172,13 @@ router.get("/onlyGetBookingOfSpecificVehicle/:registrationNumber", authenticate,
 
 
 router.put("/isIncludeinSubmission/:bookingId", authenticate, authorize(["admin"]), isIncludeinSubmission);
+
+
+router.post(
+  "/stop-shift-which-active-more-than-12-hours",
+  // authenticate,
+  // authorize(["admin"]),
+  stopShiftwhichactivemorethan12hours,
+);
 
 export default router;
