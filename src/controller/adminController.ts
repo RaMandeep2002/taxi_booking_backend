@@ -3009,10 +3009,233 @@ export const stopShiftwhichactivemorethan12hours = async (req?: Request, res?: R
         continue;
       }
 
-      const durationMs = now.getTime() - startTime.getTime();
+      let lastActiveTime: Date = startTime;
+
+      // 1. Check Driver document updatedAt
+      const driverObj = await Driver.findById(activeShift.driverId);
+      if (driverObj && (driverObj as any).updatedAt) {
+        const driverUpdatedAt = new Date((driverObj as any).updatedAt);
+        if (!isNaN(driverUpdatedAt.getTime()) && driverUpdatedAt > lastActiveTime) {
+          lastActiveTime = driverUpdatedAt;
+        }
+      }
+
+      // 2. Check the most recently updated booking associated with this shift
+      const lastBooking = await BookingModels.findOne({
+        shift: activeShift._id
+      }).sort({ updatedAt: -1 });
+
+      if (lastBooking) {
+        // Check booking updatedAt
+        if ((lastBooking as any).updatedAt) {
+          const bookingUpdatedAt = new Date((lastBooking as any).updatedAt);
+          if (!isNaN(bookingUpdatedAt.getTime()) && bookingUpdatedAt > lastActiveTime) {
+            lastActiveTime = bookingUpdatedAt;
+          }
+        }
+
+        // Check completed booking dropoff time
+        if (lastBooking.status === "completed") {
+          let bookingEndTime: Date | null = null;
+          if (lastBooking.dropoffTimeFormatted) {
+            bookingEndTime = new Date(lastBooking.dropoffTimeFormatted);
+          } else if (lastBooking.dropdownDate && lastBooking.dropdownTime) {
+            try {
+              bookingEndTime = parse(`${lastBooking.dropdownDate} ${lastBooking.dropdownTime}`, "MM/dd/yyyy hh:mma", new Date());
+              if (isNaN(bookingEndTime.getTime())) {
+                bookingEndTime = parse(`${lastBooking.dropdownDate} ${lastBooking.dropdownTime}`, "M/d/yyyy h:mm a", new Date());
+              }
+            } catch (e) {
+              console.error(`Error parsing dropdownDate/Time for booking ${lastBooking._id}:`, e);
+            }
+          }
+
+          if (bookingEndTime && !isNaN(bookingEndTime.getTime()) && bookingEndTime > lastActiveTime) {
+            lastActiveTime = bookingEndTime;
+          }
+        }
+      }
+
+      const durationMs = now.getTime() - lastActiveTime.getTime();
       const minutesActive = durationMs / (1000 * 60);
 
-      // 3. If more than 5 minutes (adjusted for testing, was 12 hours)
+      // 3. If more than 12 hours (720 minutes)
+      if (minutesActive >= 720) {
+        console.log(`[DEBUG] Checking shift ${activeShift._id} for driver ${activeShift.driverId}. Minutes active: ${minutesActive.toFixed(2)}`);
+        
+        // Use shift ID for more accurate booking check
+        const activeBooking = await BookingModels.findOne({
+          shift: activeShift._id,
+          status: { $in: ["ongoing", "accepted", "pending"] }
+        });
+
+        if (activeBooking) {
+          console.log(`[DEBUG] Shift ${activeShift._id} NOT stopped because active booking found: ${activeBooking._id} (status: ${activeBooking.status})`);
+        }
+
+        if (!activeBooking) {
+          console.log(`[DEBUG] No active booking found for shift ${activeShift._id}. Stopping shift...`);
+          // 5. Stop the shift
+          const h = Math.floor(durationMs / (1000 * 60 * 60));
+          const m = Math.floor((durationMs % (1000 * 60 * 60)) / (1000 * 60));
+          const s = Math.floor((durationMs % (1000 * 60)) / 1000);
+
+          activeShift.endTime = now.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'America/Vancouver',
+          });
+          activeShift.endDate = now.toLocaleDateString('en-US', {
+            month: '2-digit',
+            day: '2-digit',
+            year: 'numeric',
+            timeZone: 'America/Vancouver',
+          });
+          activeShift.endTimeFormatted = now.toISOString();
+          activeShift.endMonth = now.toLocaleString('default', { month: 'long' });
+          activeShift.isActive = false;
+          activeShift.isStopedByAdmin = true;
+          activeShift.totalDuration = `${h}h ${m}m ${s}s`;
+
+          // Unassign vehicle
+          const vehicle = await Vehicle.findById(activeShift.vehicleUsed);
+          if (vehicle) {
+            vehicle.isAssigned = false;
+            await vehicle.save();
+          }
+
+          // Update driver status
+          const driver = await Driver.findById(activeShift.driverId);
+          if (driver) {
+            driver.isOnline = false;
+            driver.status = "not working";
+            await driver.save();
+          }
+
+          await activeShift.save();
+          
+          stoppedShifts.push({
+            shiftId: activeShift._id,
+            driverId: activeShift.driverId,
+            duration: activeShift.totalDuration
+          });
+        }
+      }
+    }
+
+    if (res) {
+      res.status(200).json({
+        success: true,
+        message: stoppedShifts.length > 0 
+          ? `Successfully stopped ${stoppedShifts.length} shifts that were active for more than 12 hours.` 
+          : "No active shifts found that exceed 12 hours without active bookings.",
+        stoppedShifts
+      });
+    } else {
+      console.log(`[CRON] ${stoppedShifts.length} shifts were automatically stopped.`);
+    }
+
+  } catch (error) {
+    console.error("Error in stopShiftwhichactivemorethan12hours:", error);
+    if (res) {
+      res.status(500).json({ 
+        success: false, 
+        message: "An error occurred while trying to stop shifts.", 
+        error: error instanceof Error ? error.message : error 
+      });
+    }
+  }
+};
+
+
+export const stopShiftwhichactivemorethan5mintues = async (req?: Request, res?: Response) => {
+  try {
+    // 1. Find all active shifts
+    const activeShifts = await Shift.find({ isActive: true });
+    console.log("activeShifts ------> ", activeShifts);
+    const now = new Date();
+    const stoppedShifts = [];
+
+    for (const activeShift of activeShifts) {
+      // 2. Calculate duration
+      let startTime: Date | null = null;
+      
+      if (activeShift.startTimeFormatted) {
+        startTime = new Date(activeShift.startTimeFormatted);
+      }
+      
+      // If startTimeFormatted is missing or invalid, try startDate/startTime
+      if (!startTime || isNaN(startTime.getTime())) {
+        if (activeShift.startDate && activeShift.startTime) {
+          try {
+            // Try different common formats
+            startTime = parse(`${activeShift.startDate} ${activeShift.startTime}`, "MM/dd/yyyy hh:mma", new Date());
+            if (isNaN(startTime.getTime())) {
+              startTime = parse(`${activeShift.startDate} ${activeShift.startTime}`, "M/d/yyyy h:mm a", new Date());
+            }
+          } catch (e) {
+            console.error(`Error parsing date for shift ${activeShift._id}:`, e);
+          }
+        }
+      }
+
+      if (!startTime || isNaN(startTime.getTime())) {
+        console.warn(`[WARN] Skipping shift ${activeShift._id} due to invalid start time.`);
+        continue;
+      }
+
+      let lastActiveTime: Date = startTime;
+
+      // 1. Check Driver document updatedAt
+      const driverObj = await Driver.findById(activeShift.driverId);
+      if (driverObj && (driverObj as any).updatedAt) {
+        const driverUpdatedAt = new Date((driverObj as any).updatedAt);
+        if (!isNaN(driverUpdatedAt.getTime()) && driverUpdatedAt > lastActiveTime) {
+          lastActiveTime = driverUpdatedAt;
+        }
+      }
+
+      // 2. Check the most recently updated booking associated with this shift
+      const lastBooking = await BookingModels.findOne({
+        shift: activeShift._id
+      }).sort({ updatedAt: -1 });
+
+      if (lastBooking) {
+        // Check booking updatedAt
+        if ((lastBooking as any).updatedAt) {
+          const bookingUpdatedAt = new Date((lastBooking as any).updatedAt);
+          if (!isNaN(bookingUpdatedAt.getTime()) && bookingUpdatedAt > lastActiveTime) {
+            lastActiveTime = bookingUpdatedAt;
+          }
+        }
+
+        // Check completed booking dropoff time
+        if (lastBooking.status === "completed") {
+          let bookingEndTime: Date | null = null;
+          if (lastBooking.dropoffTimeFormatted) {
+            bookingEndTime = new Date(lastBooking.dropoffTimeFormatted);
+          } else if (lastBooking.dropdownDate && lastBooking.dropdownTime) {
+            try {
+              bookingEndTime = parse(`${lastBooking.dropdownDate} ${lastBooking.dropdownTime}`, "MM/dd/yyyy hh:mma", new Date());
+              if (isNaN(bookingEndTime.getTime())) {
+                bookingEndTime = parse(`${lastBooking.dropdownDate} ${lastBooking.dropdownTime}`, "M/d/yyyy h:mm a", new Date());
+              }
+            } catch (e) {
+              console.error(`Error parsing dropdownDate/Time for booking ${lastBooking._id}:`, e);
+            }
+          }
+
+          if (bookingEndTime && !isNaN(bookingEndTime.getTime()) && bookingEndTime > lastActiveTime) {
+            lastActiveTime = bookingEndTime;
+          }
+        }
+      }
+
+      const durationMs = now.getTime() - lastActiveTime.getTime();
+      const minutesActive = durationMs / (1000 * 60);
+
+      // 3. If more than 12 hours (720 minutes)
       if (minutesActive >= 5) {
         console.log(`[DEBUG] Checking shift ${activeShift._id} for driver ${activeShift.driverId}. Minutes active: ${minutesActive.toFixed(2)}`);
         
@@ -3081,8 +3304,8 @@ export const stopShiftwhichactivemorethan12hours = async (req?: Request, res?: R
       res.status(200).json({
         success: true,
         message: stoppedShifts.length > 0 
-          ? `Successfully stopped ${stoppedShifts.length} shifts that were active for more than 5 minutes.` 
-          : "No active shifts found that exceed 5 minutes without active bookings.",
+          ? `Successfully stopped ${stoppedShifts.length} shifts that were active for more than 12 hours.` 
+          : "No active shifts found that exceed 12 hours without active bookings.",
         stoppedShifts
       });
     } else {

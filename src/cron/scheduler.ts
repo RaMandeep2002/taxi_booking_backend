@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import { runDatabaseBackup } from "./backupJob";
-import { generateAndSendReport, stopShiftwhichactivemorethan12hours } from "../controller/adminController";
+import { generateAndSendReport, stopShiftwhichactivemorethan12hours, stopShiftwhichactivemorethan5mintues } from "../controller/adminController";
 
 
 cron.schedule("0 */12 * * *", () => {
@@ -13,19 +13,19 @@ cron.schedule("0 0 1,8,15,22 * *", async () => {
     await generateAndSendReport();
 });
 
-// cron.schedule("0 */12 * * *", async () => {
-//     console.log("📅 Checking for active shifts more than 12 hours...");
-//     await stopShiftwhichactivemorethan12hours();
-// });
+cron.schedule("0 */12 * * *", async () => {
+    console.log("📅 Checking for active shifts more than 12 hours...");
+    await stopShiftwhichactivemorethan12hours();
+});
 
 cron.schedule("* * * * *", async () => {
     console.log("Cron is working every minute...");
 });
 
-cron.schedule("*/5 * * * *", async () => {
-    console.log("📅 Checking for active shifts more than 5 minutes...");
-    await stopShiftwhichactivemorethan12hours();
-});
+// cron.schedule("*/5 * * * *", async () => {
+//     console.log("📅 Checking for active shifts more than 5 minutes...");
+//     await stopShiftwhichactivemorethan5mintues();
+// });
 
 
 
