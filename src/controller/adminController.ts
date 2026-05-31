@@ -2035,35 +2035,59 @@ export const getBookingdeteails = async (req: Request, res: Response) => {
   }
 };
 
-
 export const getBookingdeteailsone = async (req: Request, res: Response) => {
-
   const page = Number(req.query.page) || 1;
   const limit = Number(req.query.limit) || 50;
   const skip = (page - 1) * limit;
+
   try {
     const result = await BookingModels.aggregate([
-      { $group: { _id: "$bookingId", doc: { $first: "$$ROOT" } } },
-      { $replaceRoot: { newRoot: "$doc" } },
+      // Step 1: Deduplicate by bookingId, keeping the latest document
+      {
+        $sort: { pickupDate: -1, pickuptime: -1 }  // ← Sort BEFORE group so $first picks latest
+      },
+      {
+        $group: { _id: "$bookingId", doc: { $first: "$$ROOT" } }
+      },
+      {
+        $replaceRoot: { newRoot: "$doc" }
+      },
 
-      { $lookup: { from: "drivers", localField: "driver", foreignField: "_id", as: "driver" } },
+      // Step 2: Lookups
+      {
+        $lookup: { from: "drivers", localField: "driver", foreignField: "_id", as: "driver" }
+      },
       { $unwind: { path: "$driver", preserveNullAndEmptyArrays: true } },
 
-      { $lookup: { from: "vehicles", localField: "vehicleUsed", foreignField: "_id", as: "vehicle" } },
+      {
+        $lookup: { from: "vehicles", localField: "vehicleUsed", foreignField: "_id", as: "vehicle" }
+      },
       { $unwind: { path: "$vehicle", preserveNullAndEmptyArrays: true } },
 
       {
-        $lookup: {
-          from: "shifts", // Make sure your MongoDB collection for shifts is called "shifts"
-          localField: "shift",
-          foreignField: "_id",
-          as: "shift",
-        },
+        $lookup: { from: "shifts", localField: "shift", foreignField: "_id", as: "shift" }
       },
       { $unwind: { path: "$shift", preserveNullAndEmptyArrays: true } },
 
-      { $sort: { pickupDate: -1, pickuptime: -1 } },
+      // Step 3: Add a normalized date field for reliable sorting
+      {
+        $addFields: {
+          sortableDate: {
+            $cond: {
+              if: { $eq: [{ $type: "$pickupDate" }, "date"] },
+              then: "$pickupDate",
+              else: { $toDate: "$pickupDate" }  // handles string dates
+            }
+          }
+        }
+      },
 
+      // Step 4: Sort AGAIN after $replaceRoot (group destroys order)
+      {
+        $sort: { sortableDate: -1, pickuptime: -1 }
+      },
+
+      // Step 5: Paginate + project
       {
         $facet: {
           totalCount: [{ $count: "count" }],
@@ -2096,7 +2120,6 @@ export const getBookingdeteailsone = async (req: Request, res: Response) => {
                 "shift.startDate": 1,
                 "shift.endTime": 1,
                 "shift.endDate": 1,
-                // "vehicle.licensePlate": 1,
               }
             }
           ]
@@ -2106,35 +2129,17 @@ export const getBookingdeteailsone = async (req: Request, res: Response) => {
 
     const total = result[0]?.totalCount[0]?.count || 0;
     const bookings = result[0]?.data || [];
-
     const totalPages = Math.ceil(total / limit);
 
     if (page > totalPages && totalPages > 0) {
-      res.status(400).json({
-        message: "Requested page exceeds total pages.",
-        total,
-        page,
-        limit,
-        totalPages,
-        hasMore: false
-      });
+      res.status(400).json({ message: "Requested page exceeds total pages.", total, page, limit, totalPages, hasMore: false });
       return;
     }
-
 
     if (!bookings || bookings.length === 0) {
-      res.status(404).json({
-        message: "No bookings found!",
-        total,
-        page,
-        limit,
-        totalPages,
-        hasMore: false
-      });
+      res.status(404).json({ message: "No bookings found!", total, page, limit, totalPages, hasMore: false });
       return;
     }
-
-    console.log("Bookings ====> ", bookings)
 
     res.status(200).json({
       message: "Bookings fetched successfully",
@@ -2142,17 +2147,15 @@ export const getBookingdeteailsone = async (req: Request, res: Response) => {
       total,
       page,
       limit,
-      totalPages: Math.ceil(total / limit),
+      totalPages,
       hasMore: skip + bookings.length < total
     });
-    return;
+
   } catch (error) {
     console.error("Error fetching bookings: ", error);
     res.status(500).json({ message: "Error fetching the bookings" });
-    return;
   }
 };
-
 
 
 
